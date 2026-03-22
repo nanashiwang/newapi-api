@@ -110,6 +110,24 @@ docker compose up -d
 ghcr.io/nanashiwang/newapi-api:latest
 ```
 
+### 服务器环境一键初始化
+
+如果服务器还没有安装 Docker / Compose，可直接运行：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nanashiwang/newapi-api/main/scripts/server-init.sh -o server-init.sh
+sudo bash server-init.sh
+```
+
+### 一条命令安装并启动
+
+如果你希望在全新服务器上直接完成 Docker 安装、拉镜像和启动，可运行：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nanashiwang/newapi-api/main/scripts/deploy.sh -o deploy.sh
+bash deploy.sh
+```
+
 ### 推送到 GitHub 后自动发布镜像
 
 项目已包含 GHCR 发布工作流：
@@ -130,9 +148,13 @@ docker run --rm -p 3000:3000 ghcr.io/nanashiwang/newapi-api:latest
 已新增服务器部署说明：
 
 - `docs/deploy.md`
+- `scripts/deploy.sh`
+- `scripts/server-init.sh`
 
 内容包括：
 
+- 一条命令安装 + 拉镜像 + 启动
+- Docker / Compose 一键安装
 - 服务器前置条件检查
 - 使用 `docker compose pull && docker compose up -d` 启动
 - 更新镜像后的滚动拉取方式
@@ -158,6 +180,9 @@ src/
     dashboard-types.ts
     formatters.ts
     newapi-client.ts
+scripts/
+  deploy.sh
+  server-init.sh
 ```
 
 ## 设计取向

@@ -1,40 +1,115 @@
 # 部署说明
 
-本文档说明如何在一台全新的 Linux 服务器上，直接拉取 `ghcr.io/nanashiwang/newapi-api:latest` 并启动服务。
+本文档说明如何在一台全新的 Linux 服务器上，直接完成 Docker 环境安装、拉取 `ghcr.io/nanashiwang/newapi-api:latest` 并启动服务。
 
-## 1. 前置条件
+## 1. 一条命令完成安装 + 拉镜像 + 启动
+
+仓库已提供一键部署脚本：
+
+- `scripts/deploy.sh`
+
+适用场景：
+
+- 服务器还没安装 Docker
+- 你希望尽量减少手工步骤
+- 你只想执行一次命令就把应用跑起来
+
+推荐执行方式：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nanashiwang/newapi-api/main/scripts/deploy.sh -o deploy.sh
+bash deploy.sh
+```
+
+这个脚本会自动完成：
+
+- 检查并安装 `curl`
+- 检查 Docker / Compose Plugin 是否存在
+- 如果缺失，则自动调用服务器初始化脚本安装 Docker
+- 创建部署目录 `/opt/newapi-api`
+- 下载最新 `docker-compose.yml`
+- 拉取 GHCR 镜像
+- 启动容器
+
+如果你想改部署目录，可以这样执行：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nanashiwang/newapi-api/main/scripts/deploy.sh -o deploy.sh
+DEPLOY_DIR=/data/newapi-api bash deploy.sh
+```
+
+如果你的 GHCR 包保持私有，可以这样执行：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nanashiwang/newapi-api/main/scripts/deploy.sh -o deploy.sh
+GHCR_USERNAME=nanashiwang GHCR_TOKEN=<你的PAT> bash deploy.sh
+```
+
+## 2. 只初始化服务器环境
+
+如果你只想先把 Docker 环境装好，再手动部署，也可以单独执行：
+
+- `scripts/server-init.sh`
+
+适用范围：
+
+- Ubuntu
+- Debian
+
+这个脚本会自动完成：
+
+- 安装 Docker 官方源
+- 安装 Docker Engine
+- 安装 Docker Compose Plugin
+- 启动并设置 Docker 开机自启
+- 将当前 sudo 用户加入 `docker` 用户组
+
+执行方式：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nanashiwang/newapi-api/main/scripts/server-init.sh -o server-init.sh
+sudo bash server-init.sh
+```
+
+执行完成后，建议重新登录一次终端，再继续后面的部署步骤。
+
+## 3. 手动部署方式
+
+如果你不想走一键脚本，也可以按下面步骤手动部署。
+
+### 3.1 前置条件
 
 - 服务器已安装 Docker
 - 服务器已安装 Docker Compose Plugin，也就是支持 `docker compose`
 - 服务器可以访问 `ghcr.io`
 
-可先执行以下命令确认：
+先确认环境：
 
 ```bash
 docker --version
 docker compose version
 ```
 
-## 2. 准备部署目录
-
-登录服务器后，创建一个独立目录：
+### 3.2 准备部署目录
 
 ```bash
 mkdir -p /opt/newapi-api
 cd /opt/newapi-api
 ```
 
-将仓库中的 `docker-compose.yml` 上传到这个目录，或者直接在服务器里创建同名文件。
+下载 compose 文件：
 
-当前 `docker-compose.yml` 已经写好，默认会启动：
+```bash
+curl -fsSL https://raw.githubusercontent.com/nanashiwang/newapi-api/main/docker-compose.yml -o docker-compose.yml
+```
+
+当前 `docker-compose.yml` 默认使用：
 
 - 镜像：`ghcr.io/nanashiwang/newapi-api:latest`
 - 容器名：`newapi-api`
 - 端口：`3000:3000`
 
-## 3. 拉取并启动
-
-在部署目录执行：
+### 3.3 拉取并启动
 
 ```bash
 docker compose pull
