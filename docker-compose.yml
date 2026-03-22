@@ -1,0 +1,9 @@
+services:
+  newapi-api:
+    image: ghcr.io/nanashiwang/newapi-api:latest
+    container_name: newapi-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production

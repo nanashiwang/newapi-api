@@ -96,20 +96,48 @@ docker build -t newapi-api:latest .
 docker run --rm -p 3000:3000 newapi-api:latest
 ```
 
+### 一条命令启动
+
+仓库根目录已提供 `docker-compose.yml`，默认直接使用 GHCR 镜像：
+
+```bash
+docker compose up -d
+```
+
+当前默认镜像地址：
+
+```text
+ghcr.io/nanashiwang/newapi-api:latest
+```
+
 ### 推送到 GitHub 后自动发布镜像
 
 项目已包含 GHCR 发布工作流：
 
 - 工作流文件：`.github/workflows/publish-ghcr.yml`
-- 默认镜像地址：`ghcr.io/<github-owner>/<repo>:latest`
+- 默认镜像地址：`ghcr.io/nanashiwang/newapi-api:latest`
 - 当代码推送到 `main` / `master` 或推送 `v*` 标签时，会自动构建并推送镜像
 
 如果你要直接拉取镜像，可使用：
 
 ```bash
-docker pull ghcr.io/<github-owner>/<repo>:latest
-docker run --rm -p 3000:3000 ghcr.io/<github-owner>/<repo>:latest
+docker pull ghcr.io/nanashiwang/newapi-api:latest
+docker run --rm -p 3000:3000 ghcr.io/nanashiwang/newapi-api:latest
 ```
+
+## 部署文档
+
+已新增服务器部署说明：
+
+- `docs/deploy.md`
+
+内容包括：
+
+- 服务器前置条件检查
+- 使用 `docker compose pull && docker compose up -d` 启动
+- 更新镜像后的滚动拉取方式
+- GHCR 拉取失败时的处理方式
+- 私有/公开镜像两种处理路径
 
 ## 项目结构
 
