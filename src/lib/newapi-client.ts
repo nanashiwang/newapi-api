@@ -90,7 +90,10 @@ function normalizeBaseUrl(rawValue: string): string {
   }
 }
 
-function createAuthHeaders(authType: AuthType, rawAuthValue: string): HeadersInit {
+function createAuthHeaders(
+  authType: AuthType,
+  rawAuthValue: string,
+): Record<string, string> {
   const authValue = rawAuthValue.trim();
   if (!authValue) {
     throw new Error("请填写鉴权值。");
@@ -114,6 +117,25 @@ function createAuthHeaders(authType: AuthType, rawAuthValue: string): HeadersIni
     headers["New-Api-User"] = authValue;
   }
 
+  return headers;
+}
+
+function createStatisticsHeaders(
+  authType: AuthType,
+  authValue: string,
+  user: UserSnapshot,
+): Record<string, string> {
+  const headers = createAuthHeaders(authType, authValue);
+
+  if (authType === "new-api-user") {
+    return headers;
+  }
+
+  if (!Number.isFinite(user.id) || user.id <= 0) {
+    throw new Error("当前账号未返回有效用户 ID，无法补充 New-Api-User 请求头。");
+  }
+
+  headers["New-Api-User"] = String(user.id);
   return headers;
 }
 
@@ -317,12 +339,17 @@ export async function loadDashboardData(
     end_timestamp: String(Math.floor(payload.endTimestamp)),
   });
 
-  const [userPayload, quotaPayload] = await Promise.all([
-    fetchEnvelope<unknown>(`${baseUrl}/api/user/self`, headers),
-    fetchEnvelope<unknown>(`${baseUrl}/api/data/self?${params.toString()}`, headers),
-  ]);
-
+  const userPayload = await fetchEnvelope<unknown>(`${baseUrl}/api/user/self`, headers);
   const user = normalizeUser(userPayload);
+  const statisticsHeaders = createStatisticsHeaders(
+    payload.authType,
+    payload.authValue,
+    user,
+  );
+  const quotaPayload = await fetchEnvelope<unknown>(
+    `${baseUrl}/api/data/self?${params.toString()}`,
+    statisticsHeaders,
+  );
   const quotaRecords = normalizeQuotaRecords(quotaPayload);
   const hourly = buildTrend(quotaRecords, "hourly");
   const daily = buildTrend(quotaRecords, "daily");
