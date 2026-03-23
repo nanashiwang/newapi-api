@@ -5,6 +5,7 @@ import {
   useDeferredValue,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useTransition,
 } from "react";
@@ -337,6 +338,7 @@ function buildSuccessSummary(site: SiteConfig, data: DashboardData): SiteSummary
 }
 
 export function DashboardShell() {
+  const hasBootstrappedRef = useRef(false);
   const [sites, setSites] = useState<SiteConfig[]>([]);
   const [siteDraft, setSiteDraft] = useState<SiteDraft>(createEmptySiteDraft());
   const [queryRange, setQueryRange] = useState<DashboardRange>(createDefaultRange());
@@ -558,6 +560,12 @@ export function DashboardShell() {
   );
 
   useEffect(() => {
+    if (hasBootstrappedRef.current) {
+      return;
+    }
+
+    hasBootstrappedRef.current = true;
+
     const nextDefaultRange = createDefaultRange();
     const savedSitesRaw = window.localStorage.getItem(SITES_STORAGE_KEY);
     const savedRangeRaw = window.localStorage.getItem(RANGE_STORAGE_KEY);
