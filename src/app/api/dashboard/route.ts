@@ -25,6 +25,7 @@ export async function POST(request: Request) {
       baseUrl: typeof body.baseUrl === "string" ? body.baseUrl : "",
       authType: body.authType,
       authValue: typeof body.authValue === "string" ? body.authValue : "",
+      userId: typeof body.userId === "string" ? body.userId : null,
       startTimestamp: Number(body.startTimestamp),
       endTimestamp: Number(body.endTimestamp),
     });

@@ -47,6 +47,8 @@ import {
   formatNumber,
   formatPercent,
   formatRunway,
+  formatTimestampLabel,
+  formatUsd,
   shiftDate,
 } from "@/lib/formatters";
 
@@ -57,6 +59,7 @@ type SiteDraft = {
   baseUrl: string;
   authType: AuthType;
   authValue: string;
+  userId: string;
   warningQuota: string;
 };
 
@@ -116,6 +119,7 @@ function createEmptySiteDraft(): SiteDraft {
     baseUrl: "",
     authType: "authorization",
     authValue: "",
+    userId: "",
     warningQuota: "",
   };
 }
@@ -128,6 +132,7 @@ function siteToDraft(site: SiteConfig): SiteDraft {
     baseUrl: site.baseUrl,
     authType: site.authType,
     authValue: site.authValue,
+    userId: site.userId ?? "",
     warningQuota: site.warningQuota === null ? "" : `${site.warningQuota}`,
   };
 }
@@ -220,6 +225,15 @@ function parseWarningQuotaInput(rawValue: string): {
   };
 }
 
+function normalizeOptionalText(rawValue: unknown): string | null {
+  if (typeof rawValue !== "string") {
+    return null;
+  }
+
+  const trimmed = rawValue.trim();
+  return trimmed.length ? trimmed : null;
+}
+
 function normalizeSiteConfig(site: Partial<SiteConfig>): SiteConfig | null {
   if (!site.id || !site.baseUrl?.trim() || !site.authValue?.trim()) {
     return null;
@@ -237,6 +251,7 @@ function normalizeSiteConfig(site: Partial<SiteConfig>): SiteConfig | null {
     baseUrl: site.baseUrl.trim(),
     authType,
     authValue: site.authValue.trim(),
+    userId: normalizeOptionalText(site.userId),
     warningQuota: normalizeWarningQuotaValue(site.warningQuota),
   };
 }
@@ -273,6 +288,7 @@ function buildRequestBody(site: SiteConfig, range: DashboardRange): DashboardReq
     baseUrl: site.baseUrl,
     authType: site.authType,
     authValue: site.authValue,
+    userId: site.userId,
     startTimestamp: toStartTimestamp(range.startDate),
     endTimestamp: toEndTimestamp(range.endDate),
   };
@@ -618,6 +634,7 @@ export function DashboardShell() {
               baseUrl: parsedLegacy.baseUrl,
               authType: parsedLegacy.authType ?? "authorization",
               authValue: parsedLegacy.authValue,
+              userId: null,
               warningQuota: null,
             },
           ];
@@ -733,6 +750,7 @@ export function DashboardShell() {
       baseUrl: siteDraft.baseUrl.trim(),
       authType: siteDraft.authType,
       authValue: siteDraft.authValue.trim(),
+      userId: normalizeOptionalText(siteDraft.userId),
       warningQuota: warningQuotaState.value,
     };
 
@@ -986,6 +1004,28 @@ export function DashboardShell() {
                   }))
                 }
               />
+            </div>
+
+            <div className="space-y-2">
+              <label className="field-label" htmlFor="user-id">
+                用户 ID / New-Api-User（可选）
+              </label>
+              <input
+                id="user-id"
+                inputMode="numeric"
+                className="field-input"
+                placeholder="如 onlycode.shop 这类站点可以填写 128"
+                value={siteDraft.userId}
+                onChange={(event) =>
+                  setSiteDraft((current) => ({
+                    ...current,
+                    userId: event.target.value,
+                  }))
+                }
+              />
+              <p className="text-xs leading-5 text-[#7a898d]">
+                如果站点的 `/api/user/self` 也要求 `New-Api-User`，请在这里手动填写用户 ID。
+              </p>
             </div>
 
             <div className="rounded-[1.5rem] border border-black/5 bg-[#fbfaf5] p-4">
@@ -1258,6 +1298,31 @@ export function DashboardShell() {
                 value={formatNumber(activeData?.overview.burnPerDay ?? 0)}
                 detail="以当前查询区间为样本估算的平均日耗"
               />
+              <MetricCard
+                icon={Wallet}
+                tone="slate"
+                label="月卡总额"
+                value={formatUsd(
+                  activeData?.billing.hardLimitUsd ??
+                    activeData?.billing.softLimitUsd ??
+                    activeData?.billing.systemHardLimitUsd ??
+                    null,
+                )}
+                detail={
+                  activeData?.billing.message ??
+                  "来自 /dashboard/billing/subscription 的 hard_limit_usd"
+                }
+              />
+              <MetricCard
+                icon={Gauge}
+                tone="coral"
+                label="月卡剩余"
+                value={formatUsd(activeData?.billing.remainingUsd ?? null)}
+                detail={
+                  activeData?.billing.message ??
+                  "按订阅总额减去 /dashboard/billing/usage 计算"
+                }
+              />
             </div>
           </section>
 
@@ -1433,6 +1498,18 @@ export function DashboardShell() {
                     </div>
                     <p className="mt-3 text-sm leading-6 text-[#5c6d71]">
                       {new Date(activeData.connection.lastSyncedAt).toLocaleString("zh-CN")}
+                    </p>
+                  </article>
+
+                  <article className="rounded-[1.5rem] border border-black/5 bg-[#fbfaf5] p-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-[#1d2529]">
+                      <Clock3 className="size-4 text-[#d96749]" />
+                      月卡有效期
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-[#5c6d71]">
+                      {activeData.billing.accessUntil
+                        ? formatTimestampLabel(activeData.billing.accessUntil)
+                        : activeData.billing.message || "暂未获取"}
                     </p>
                   </article>
 

@@ -14,6 +14,20 @@ type ApiEnvelope<T> = {
   data?: T;
 };
 
+type BillingSubscriptionPayload = {
+  object?: string;
+  has_payment_method?: boolean;
+  soft_limit_usd?: number | null;
+  hard_limit_usd?: number | null;
+  system_hard_limit_usd?: number | null;
+  access_until?: number | null;
+};
+
+type BillingUsagePayload = {
+  object?: string;
+  total_usage?: number | null;
+};
+
 const THIRTY_DAYS_IN_SECONDS = 30 * 24 * 60 * 60;
 
 const AUTH_TYPE_LABELS: Record<AuthType, string> = {
@@ -90,9 +104,24 @@ function normalizeBaseUrl(rawValue: string): string {
   }
 }
 
+function normalizeUserId(value: unknown): string | null {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return String(value);
+  }
+
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+}
+
 function createAuthHeaders(
   authType: AuthType,
   rawAuthValue: string,
+  userIdOverride: string | null = null,
+  mode: "plain" | "bearer" = "plain",
 ): Record<string, string> {
   const authValue = rawAuthValue.trim();
   if (!authValue) {
@@ -117,6 +146,11 @@ function createAuthHeaders(
     headers["New-Api-User"] = authValue;
   }
 
+  if (authType !== "new-api-user" && userIdOverride) {
+    headers["New-Api-User"] =
+      mode === "bearer" ? `Bearer ${userIdOverride}` : userIdOverride;
+  }
+
   return headers;
 }
 
@@ -124,19 +158,102 @@ function createStatisticsHeaders(
   authType: AuthType,
   authValue: string,
   user: UserSnapshot,
+  userIdOverride: string | null = null,
+  mode: "plain" | "bearer" = "plain",
 ): Record<string, string> {
-  const headers = createAuthHeaders(authType, authValue);
+  const resolvedUserId = userIdOverride ?? String(user.id);
+  const headers = createAuthHeaders(authType, authValue, resolvedUserId, mode);
 
   if (authType === "new-api-user") {
     return headers;
   }
 
-  if (!Number.isFinite(user.id) || user.id <= 0) {
+  if (!resolvedUserId) {
     throw new Error("当前账号未返回有效用户 ID，无法补充 New-Api-User 请求头。");
   }
 
-  headers["New-Api-User"] = String(user.id);
   return headers;
+}
+
+function shouldRetryWithLegacyUserHeader(error: unknown): boolean {
+  return error instanceof Error && /New-Api-User/i.test(error.message);
+}
+
+function toNullableNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+async function fetchPlainJson<T>(url: string, headers: HeadersInit): Promise<T> {
+  const response = await fetch(url, {
+    headers,
+    cache: "no-store",
+  });
+
+  const contentType = response.headers.get("content-type") ?? "";
+  const payload = contentType.includes("application/json")
+    ? ((await response.json()) as unknown)
+    : await response.text();
+
+  if (!response.ok) {
+    if (
+      typeof payload === "object" &&
+      payload !== null &&
+      "error" in payload &&
+      typeof payload.error === "object" &&
+      payload.error !== null &&
+      "message" in payload.error &&
+      typeof payload.error.message === "string"
+    ) {
+      throw new Error(payload.error.message);
+    }
+
+    if (
+      typeof payload === "object" &&
+      payload !== null &&
+      "message" in payload &&
+      typeof payload.message === "string"
+    ) {
+      throw new Error(payload.message);
+    }
+
+    throw new Error(`上游计费接口请求失败，状态码 ${response.status}。`);
+  }
+
+  if (typeof payload !== "object" || payload === null) {
+    throw new Error("上游计费接口未返回 JSON 数据。");
+  }
+
+  return payload as T;
+}
+
+async function fetchBillingPayload<T>(
+  baseUrl: string,
+  path: string,
+  headers: HeadersInit,
+): Promise<T> {
+  const candidates = [`${baseUrl}${path}`, `${baseUrl}/v1${path}`];
+  let lastError: unknown = null;
+
+  for (const candidate of candidates) {
+    try {
+      return await fetchPlainJson<T>(candidate, headers);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("计费接口请求失败。");
 }
 
 async function fetchEnvelope<T>(url: string, headers: HeadersInit): Promise<T> {
@@ -332,28 +449,184 @@ export async function loadDashboardData(
   }
 
   const baseUrl = normalizeBaseUrl(payload.baseUrl);
-  const headers = createAuthHeaders(payload.authType, payload.authValue);
+  const userIdOverride = normalizeUserId(payload.userId);
+  const headers = createAuthHeaders(
+    payload.authType,
+    payload.authValue,
+    userIdOverride,
+  );
 
   const params = new URLSearchParams({
     start_timestamp: String(Math.floor(payload.startTimestamp)),
     end_timestamp: String(Math.floor(payload.endTimestamp)),
   });
 
-  const userPayload = await fetchEnvelope<unknown>(`${baseUrl}/api/user/self`, headers);
+  let userPayload: unknown;
+
+  try {
+    userPayload = await fetchEnvelope<unknown>(`${baseUrl}/api/user/self`, headers);
+  } catch (error) {
+    if (payload.authType === "new-api-user") {
+      throw error;
+    }
+
+    if (!shouldRetryWithLegacyUserHeader(error)) {
+      throw error;
+    }
+
+    if (!userIdOverride) {
+      throw new Error(
+        "当前站点的 /api/user/self 也要求提供 New-Api-User，请在站点配置里填写用户 ID 后重试。",
+      );
+    }
+
+    userPayload = await fetchEnvelope<unknown>(
+      `${baseUrl}/api/user/self`,
+      createAuthHeaders(
+        payload.authType,
+        payload.authValue,
+        userIdOverride,
+        "bearer",
+      ),
+    );
+  }
+
   const user = normalizeUser(userPayload);
-  const statisticsHeaders = createStatisticsHeaders(
-    payload.authType,
-    payload.authValue,
-    user,
-  );
-  const quotaPayload = await fetchEnvelope<unknown>(
-    `${baseUrl}/api/data/self?${params.toString()}`,
-    statisticsHeaders,
-  );
+  const statisticsUrl = `${baseUrl}/api/data/self?${params.toString()}`;
+
+  let quotaPayload: unknown;
+
+  try {
+    quotaPayload = await fetchEnvelope<unknown>(
+      statisticsUrl,
+      createStatisticsHeaders(
+        payload.authType,
+        payload.authValue,
+        user,
+        userIdOverride,
+      ),
+    );
+  } catch (error) {
+    if (
+      payload.authType === "new-api-user" ||
+      !shouldRetryWithLegacyUserHeader(error)
+    ) {
+      throw error;
+    }
+
+    quotaPayload = await fetchEnvelope<unknown>(
+      statisticsUrl,
+      createStatisticsHeaders(
+        payload.authType,
+        payload.authValue,
+        user,
+        userIdOverride,
+        "bearer",
+      ),
+    );
+  }
+
   const quotaRecords = normalizeQuotaRecords(quotaPayload);
   const hourly = buildTrend(quotaRecords, "hourly");
   const daily = buildTrend(quotaRecords, "daily");
   const models = buildModelBreakdown(quotaRecords);
+  let billing: DashboardData["billing"] = {
+    supported: false,
+    message: null,
+    hardLimitUsd: null,
+    softLimitUsd: null,
+    systemHardLimitUsd: null,
+    usageUsd: null,
+    remainingUsd: null,
+    accessUntil: null,
+  };
+
+  if (payload.authType === "new-api-user") {
+    billing.message = "当前鉴权方式无法读取订阅计费面板。";
+  } else {
+    const fetchBillingData = async (mode: "plain" | "bearer" = "plain") => {
+      const billingHeaders = createStatisticsHeaders(
+        payload.authType,
+        payload.authValue,
+        user,
+        userIdOverride,
+        mode,
+      );
+
+      return Promise.all([
+        fetchBillingPayload<BillingSubscriptionPayload>(
+          baseUrl,
+          "/dashboard/billing/subscription",
+          billingHeaders,
+        ),
+        fetchBillingPayload<BillingUsagePayload>(
+          baseUrl,
+          "/dashboard/billing/usage",
+          billingHeaders,
+        ),
+      ]);
+    };
+
+    try {
+      const [subscriptionPayload, usagePayload] = await fetchBillingData();
+      const hardLimitUsd = toNullableNumber(subscriptionPayload.hard_limit_usd);
+      const softLimitUsd = toNullableNumber(subscriptionPayload.soft_limit_usd);
+      const systemHardLimitUsd = toNullableNumber(
+        subscriptionPayload.system_hard_limit_usd,
+      );
+      const accessUntil = toNullableNumber(subscriptionPayload.access_until);
+      const usageRaw = toNullableNumber(usagePayload.total_usage);
+      const usageUsd = usageRaw === null ? null : usageRaw / 100;
+      const limitUsd = hardLimitUsd ?? softLimitUsd ?? systemHardLimitUsd;
+
+      billing = {
+        supported: true,
+        message: null,
+        hardLimitUsd,
+        softLimitUsd,
+        systemHardLimitUsd,
+        usageUsd,
+        remainingUsd:
+          limitUsd !== null && usageUsd !== null ? limitUsd - usageUsd : null,
+        accessUntil,
+      };
+    } catch (error) {
+      if (shouldRetryWithLegacyUserHeader(error)) {
+        try {
+          const [subscriptionPayload, usagePayload] = await fetchBillingData("bearer");
+          const hardLimitUsd = toNullableNumber(subscriptionPayload.hard_limit_usd);
+          const softLimitUsd = toNullableNumber(subscriptionPayload.soft_limit_usd);
+          const systemHardLimitUsd = toNullableNumber(
+            subscriptionPayload.system_hard_limit_usd,
+          );
+          const accessUntil = toNullableNumber(subscriptionPayload.access_until);
+          const usageRaw = toNullableNumber(usagePayload.total_usage);
+          const usageUsd = usageRaw === null ? null : usageRaw / 100;
+          const limitUsd = hardLimitUsd ?? softLimitUsd ?? systemHardLimitUsd;
+
+          billing = {
+            supported: true,
+            message: null,
+            hardLimitUsd,
+            softLimitUsd,
+            systemHardLimitUsd,
+            usageUsd,
+            remainingUsd:
+              limitUsd !== null && usageUsd !== null ? limitUsd - usageUsd : null,
+            accessUntil,
+          };
+        } catch (retryError) {
+          billing.message =
+            retryError instanceof Error
+              ? retryError.message
+              : "当前站点未开放订阅计费接口。";
+        }
+      } else {
+        billing.message =
+          error instanceof Error ? error.message : "当前站点未开放订阅计费接口。";
+      }
+    }
+  }
 
   const periodQuota = models.reduce((sum, item) => sum + item.quota, 0);
   const periodTokens = models.reduce((sum, item) => sum + item.tokenUsed, 0);
@@ -393,6 +666,7 @@ export async function loadDashboardData(
       usageRate: lifetimeTotal > 0 ? (user.usedQuota / lifetimeTotal) * 100 : null,
       peakLabel: peakPoint?.label ?? null,
     },
+    billing,
     trend: {
       hourly,
       daily,

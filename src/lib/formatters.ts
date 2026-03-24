@@ -10,6 +10,19 @@ export function formatDecimal(value: number, digits = 2): string {
   }).format(value || 0);
 }
 
+export function formatUsd(value: number | null): string {
+  if (value === null) {
+    return "暂未获取";
+  }
+
+  return new Intl.NumberFormat("zh-CN", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
 export function formatCompactNumber(value: number): string {
   if (Math.abs(value) < 10000) {
     return formatNumber(value);

@@ -6,6 +6,7 @@ export interface SiteConfig {
   baseUrl: string;
   authType: AuthType;
   authValue: string;
+  userId: string | null;
   group: string;
   warningQuota: number | null;
 }
@@ -19,6 +20,7 @@ export interface DashboardRequest {
   baseUrl: string;
   authType: AuthType;
   authValue: string;
+  userId: string | null;
   startTimestamp: number;
   endTimestamp: number;
 }
@@ -80,6 +82,16 @@ export interface DashboardData {
     estimatedRunwayDays: number | null;
     usageRate: number | null;
     peakLabel: string | null;
+  };
+  billing: {
+    supported: boolean;
+    message: string | null;
+    hardLimitUsd: number | null;
+    softLimitUsd: number | null;
+    systemHardLimitUsd: number | null;
+    usageUsd: number | null;
+    remainingUsd: number | null;
+    accessUntil: number | null;
   };
   trend: {
     hourly: TrendPoint[];
