@@ -843,7 +843,7 @@ export function DashboardShell() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <article className="rounded-[1.75rem] border border-white/70 bg-[#f7faf8] p-5">
+            <article className="rounded-[1.75rem] border border-white/70 bg-emerald-50 p-5">
               <p className="stat-note">Multi Site</p>
               <p className="mt-3 text-lg font-semibold text-[#1d2529]">
                 本地保存多个 NewAPI 实例
@@ -853,7 +853,7 @@ export function DashboardShell() {
               </p>
             </article>
 
-            <article className="rounded-[1.75rem] border border-white/70 bg-[#fff7ed] p-5">
+            <article className="rounded-[1.75rem] border border-white/70 bg-amber-50 p-5">
               <p className="stat-note">Guardrail</p>
               <p className="mt-3 text-lg font-semibold text-[#1d2529]">
                 单次查询最多 30 天
@@ -867,7 +867,7 @@ export function DashboardShell() {
       </section>
 
       {errorMessage ? (
-        <div className="mt-6 rounded-[1.5rem] border border-[#d96749]/15 bg-[#fff2ee] px-5 py-4 text-sm text-[#a34d35]">
+        <div className="mt-6 rounded-[1.5rem] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">
           {errorMessage}
         </div>
       ) : null}
@@ -1028,7 +1028,7 @@ export function DashboardShell() {
               </p>
             </div>
 
-            <div className="rounded-[1.5rem] border border-black/5 bg-[#fbfaf5] p-4">
+            <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
               <div className="flex items-center gap-2">
                 <CalendarRange className="size-4 text-[#d96749]" />
                 <p className="text-sm font-semibold text-[#1d2529]">全局查询区间</p>
@@ -1041,7 +1041,7 @@ export function DashboardShell() {
                       key={preset.label}
                       type="button"
                       onClick={() => applyPreset(preset.days)}
-                      className="rounded-full border border-black/5 bg-white px-3 py-2 text-sm font-semibold text-[#4f5d62] transition hover:bg-[#f3eee4]"
+                      className="rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                     >
                       {preset.label}
                     </button>
@@ -1171,17 +1171,17 @@ export function DashboardShell() {
                             {parseHost(site.baseUrl)}
                           </p>
                           <div className="mt-3 flex flex-wrap gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-[#6a777b]">
-                            <span className="rounded-full bg-[#f3eee4] px-3 py-1">
+                            <span className="rounded-full bg-slate-100 px-3 py-1">
                               {site.group || "未分组"}
                             </span>
                             {site.warningQuota !== null ? (
-                              <span className="rounded-full bg-[#fff2ee] px-3 py-1 text-[#a34d35]">
+                              <span className="rounded-full bg-rose-100 px-3 py-1 text-rose-700">
                                 阈值 {formatNumber(site.warningQuota)}
                               </span>
                             ) : null}
                           </div>
                         </div>
-                        <div className="rounded-full bg-[#f3eee4] px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-[#6a777b]">
+                        <div className="rounded-full bg-slate-100 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-slate-600">
                           {summary?.status === "ready"
                             ? "正常"
                             : summary?.status === "loading"
@@ -1248,7 +1248,7 @@ export function DashboardShell() {
               </div>
 
               {activeSite ? (
-                <div className="inline-flex items-center gap-2 rounded-full border border-black/5 bg-[#f7f4ec] px-4 py-2 text-sm font-semibold text-[#4f5d62]">
+                <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">
                   <Rows3 className="size-4" />
                   {getAuthTypeLabel(activeSite.authType)}
                 </div>
@@ -1344,7 +1344,7 @@ export function DashboardShell() {
 
               {activeData ? (
                 <>
-                  <div className="mt-6 rounded-[1.75rem] border border-black/5 bg-[#fbfaf5] p-5">
+                  <div className="mt-6 rounded-[1.75rem] border border-slate-200 bg-slate-50 p-5">
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <p className="text-lg font-semibold text-[#1d2529]">
@@ -1354,7 +1354,7 @@ export function DashboardShell() {
                           {activeData.user.email || "未公开邮箱"}
                         </p>
                       </div>
-                      <div className="rounded-full bg-[#e6f6f3] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#0f5c56]">
+                      <div className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
                         {activeData.user.roleLabel}
                       </div>
                     </div>
@@ -1414,7 +1414,7 @@ export function DashboardShell() {
                     </article>
                   </div>
 
-                  <div className="mt-6 rounded-[1.75rem] border border-black/5 bg-[#fbfaf5] p-5">
+                  <div className="mt-6 rounded-[1.75rem] border border-slate-200 bg-slate-50 p-5">
                     <div className="flex items-center gap-2">
                       <Clock3 className="size-4 text-[#d96749]" />
                       <p className="text-sm font-semibold text-[#1d2529]">
@@ -1446,7 +1446,7 @@ export function DashboardShell() {
                   </div>
                 </>
               ) : (
-                <div className="mt-6 flex min-h-[540px] items-center justify-center rounded-[1.75rem] bg-[#fbfaf5] text-center text-sm text-[#5c6d71]">
+                <div className="mt-6 flex min-h-[540px] items-center justify-center rounded-[1.75rem] bg-slate-50 text-center text-sm text-slate-600">
                   选择一个已同步站点后，这里会展示账户画像、续航估算和峰值时段。
                 </div>
               )}
@@ -1471,7 +1471,7 @@ export function DashboardShell() {
 
               {activeData ? (
                 <div className="mt-6 space-y-4">
-                  <article className="rounded-[1.5rem] border border-black/5 bg-[#fbfaf5] p-4">
+                  <article className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
                     <div className="flex items-center gap-2 text-sm font-semibold text-[#1d2529]">
                       <Server className="size-4 text-[#0f766e]" />
                       目标主机
@@ -1481,7 +1481,7 @@ export function DashboardShell() {
                     </p>
                   </article>
 
-                  <article className="rounded-[1.5rem] border border-black/5 bg-[#fbfaf5] p-4">
+                  <article className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
                     <div className="flex items-center gap-2 text-sm font-semibold text-[#1d2529]">
                       <CalendarRange className="size-4 text-[#d96749]" />
                       查询区间
@@ -1491,7 +1491,7 @@ export function DashboardShell() {
                     </p>
                   </article>
 
-                  <article className="rounded-[1.5rem] border border-black/5 bg-[#fbfaf5] p-4">
+                  <article className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
                     <div className="flex items-center gap-2 text-sm font-semibold text-[#1d2529]">
                       <RefreshCcw className="size-4 text-[#c57700]" />
                       最近同步
@@ -1501,7 +1501,7 @@ export function DashboardShell() {
                     </p>
                   </article>
 
-                  <article className="rounded-[1.5rem] border border-black/5 bg-[#fbfaf5] p-4">
+                  <article className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
                     <div className="flex items-center gap-2 text-sm font-semibold text-[#1d2529]">
                       <Clock3 className="size-4 text-[#d96749]" />
                       月卡有效期
@@ -1513,7 +1513,7 @@ export function DashboardShell() {
                     </p>
                   </article>
 
-                  <article className="rounded-[1.5rem] border border-black/5 bg-[#fbfaf5] p-4">
+                  <article className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
                     <div className="flex items-center gap-2 text-sm font-semibold text-[#1d2529]">
                       <Sparkles className="size-4 text-[#0f766e]" />
                       额外提示
