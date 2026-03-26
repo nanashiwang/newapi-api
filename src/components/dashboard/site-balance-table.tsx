@@ -6,8 +6,10 @@ import {
   Download,
   FileSpreadsheet,
   LoaderCircle,
+  PencilLine,
   RefreshCcw,
   Search,
+  Trash2,
   TriangleAlert,
 } from "lucide-react";
 
@@ -25,6 +27,8 @@ interface SiteBalanceTableProps {
   refreshingSiteId: string | null;
   range: DashboardRange;
   onSelect: (siteId: string) => void;
+  onEditSite: (siteId: string) => void;
+  onDeleteSite: (siteId: string) => void;
   onRefreshSite: (siteId: string) => void;
   onRefreshAll: () => void;
 }
@@ -430,6 +434,8 @@ export function SiteBalanceTable({
   refreshingSiteId,
   range,
   onSelect,
+  onEditSite,
+  onDeleteSite,
   onRefreshSite,
   onRefreshAll,
 }: SiteBalanceTableProps) {
@@ -768,6 +774,14 @@ export function SiteBalanceTable({
                                 </button>
                                 <button
                                   type="button"
+                                  className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-2 text-xs font-semibold text-[#4f5d62] transition hover:bg-[#f3eee4]"
+                                  onClick={() => onEditSite(row.id)}
+                                >
+                                  <PencilLine className="size-3" />
+                                  编辑
+                                </button>
+                                <button
+                                  type="button"
                                   className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-[#4f5d62] transition hover:bg-[#f3eee4] disabled:cursor-not-allowed disabled:opacity-60"
                                   onClick={() => onRefreshSite(row.id)}
                                   disabled={isRefreshing}
@@ -780,6 +794,14 @@ export function SiteBalanceTable({
                                   ) : (
                                     "单站刷新"
                                   )}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center gap-1 rounded-full bg-[#fff2ee] px-3 py-2 text-xs font-semibold text-[#b34d33] transition hover:bg-[#ffe6de]"
+                                  onClick={() => onDeleteSite(row.id)}
+                                >
+                                  <Trash2 className="size-3" />
+                                  删除
                                 </button>
                               </div>
                             </td>

@@ -726,6 +726,32 @@ export function DashboardShell() {
     setSiteDraft(siteToDraft(site));
   }
 
+  function removeSiteById(removingId: string) {
+    const remainingSites = sites.filter((site) => site.id !== removingId);
+    const nextActiveId =
+      activeSiteId === removingId ? remainingSites[0]?.id ?? null : activeSiteId;
+
+    setSites(remainingSites);
+    setActiveSiteId(nextActiveId);
+    setSiteDraft(
+      nextActiveId
+        ? siteToDraft(remainingSites.find((site) => site.id === nextActiveId)!)
+        : createEmptySiteDraft(),
+    );
+
+    setDashboardMap((current) => {
+      const next = { ...current };
+      delete next[removingId];
+      return next;
+    });
+
+    setSiteSummaryMap((current) => {
+      const next = { ...current };
+      delete next[removingId];
+      return next;
+    });
+  }
+
   async function handleSaveSite() {
     if (!siteDraft.baseUrl.trim()) {
       setErrorMessage("请填写 NewAPI 地址。");
@@ -776,36 +802,36 @@ export function DashboardShell() {
     setSiteDraft(createEmptySiteDraft());
   }
 
+  function handleEditSite(siteId: string) {
+    handleSelectSite(siteId);
+    setErrorMessage(null);
+  }
+
+  function handleDeleteSite(siteId: string) {
+    const site = sites.find((item) => item.id === siteId);
+    if (!site) {
+      return;
+    }
+
+    const shouldDelete = window.confirm(
+      `确认删除站点“${site.name}”吗？这只会删除当前浏览器里的本地配置。`,
+    );
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    removeSiteById(siteId);
+    setErrorMessage(null);
+  }
+
   function handleDeleteDraftSite() {
     if (!siteDraft.id) {
       setSiteDraft(createEmptySiteDraft());
       return;
     }
 
-    const removingId = siteDraft.id;
-    const remainingSites = sites.filter((site) => site.id !== removingId);
-    const nextActiveId =
-      activeSiteId === removingId ? remainingSites[0]?.id ?? null : activeSiteId;
-
-    setSites(remainingSites);
-    setActiveSiteId(nextActiveId);
-    setSiteDraft(
-      nextActiveId
-        ? siteToDraft(remainingSites.find((site) => site.id === nextActiveId)!)
-        : createEmptySiteDraft(),
-    );
-
-    setDashboardMap((current) => {
-      const next = { ...current };
-      delete next[removingId];
-      return next;
-    });
-
-    setSiteSummaryMap((current) => {
-      const next = { ...current };
-      delete next[removingId];
-      return next;
-    });
+    handleDeleteSite(siteDraft.id);
   }
 
   function clearAllLocalConfigs() {
@@ -1222,6 +1248,8 @@ export function DashboardShell() {
             refreshingSiteId={refreshingSiteId}
             range={queryRange}
             onSelect={handleSelectSite}
+            onEditSite={handleEditSite}
+            onDeleteSite={handleDeleteSite}
             onRefreshSite={(siteId) => {
               const site = sites.find((item) => item.id === siteId);
               if (site) {
