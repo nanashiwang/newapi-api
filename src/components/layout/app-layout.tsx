@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { AppHeader } from "./app-header";
 import { SiteSidebar } from "./site-sidebar";
 import type { SiteSummaryRow } from "@/lib/dashboard-types";

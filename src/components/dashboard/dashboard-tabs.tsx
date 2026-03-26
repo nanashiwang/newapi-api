@@ -17,7 +17,7 @@ export function DashboardTabs({ activeTab, onTabChange }: DashboardTabsProps) {
   ];
 
   return (
-    <div className="border-b border-black/5">
+    <div className="border-b border-slate-200">
       <div className="flex gap-1">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -30,8 +30,8 @@ export function DashboardTabs({ activeTab, onTabChange }: DashboardTabsProps) {
               onClick={() => onTabChange(tab.id)}
               className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition ${
                 isActive
-                  ? "border-[#0f766e] text-[#0f766e]"
-                  : "border-transparent text-[#5c6d71] hover:text-[#1d2529]"
+                  ? "border-blue-600 text-blue-600"
+                  : "border-transparent text-slate-600 hover:text-slate-900"
               }`}
             >
               <Icon className="size-4" />

@@ -10,20 +10,20 @@ const toneClassNameMap: Record<
   }
 > = {
   teal: {
-    icon: "bg-[#dff7f2] text-[#0f766e]",
-    halo: "from-[#0f766e]/18 via-[#0f766e]/6 to-transparent",
+    icon: "bg-emerald-100 text-emerald-700",
+    halo: "from-emerald-500/20 via-emerald-500/5 to-transparent",
   },
   amber: {
-    icon: "bg-[#fff0ca] text-[#c57700]",
-    halo: "from-[#c57700]/18 via-[#c57700]/6 to-transparent",
+    icon: "bg-amber-100 text-amber-700",
+    halo: "from-amber-500/20 via-amber-500/5 to-transparent",
   },
   coral: {
-    icon: "bg-[#ffe2da] text-[#d96749]",
-    halo: "from-[#d96749]/18 via-[#d96749]/6 to-transparent",
+    icon: "bg-rose-100 text-rose-700",
+    halo: "from-rose-500/20 via-rose-500/5 to-transparent",
   },
   slate: {
-    icon: "bg-[#e9eef0] text-[#324047]",
-    halo: "from-[#324047]/18 via-[#324047]/6 to-transparent",
+    icon: "bg-slate-100 text-slate-700",
+    halo: "from-slate-500/20 via-slate-500/5 to-transparent",
   },
 };
 
@@ -52,13 +52,13 @@ export function MetricCard({
       <div className="relative flex items-start justify-between gap-4">
         <div>
           <p className="stat-note">{label}</p>
-          <p className="mt-3 text-2xl font-semibold tracking-[-0.05em] text-[#1d2529]">
+          <p className="mt-3 text-2xl font-bold tracking-tight text-slate-900">
             {value}
           </p>
-          <p className="mt-2 text-sm text-[#5c6d71]">{detail}</p>
+          <p className="mt-2 text-sm text-slate-600">{detail}</p>
         </div>
         <div
-          className={`flex size-12 items-center justify-center rounded-2xl ${toneClassName.icon}`}
+          className={`flex size-12 items-center justify-center rounded-xl ${toneClassName.icon}`}
         >
           <Icon className="size-5" />
         </div>

@@ -48,14 +48,14 @@ export function RechargePanel({
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <div>
-          <div className="rounded-2xl bg-gradient-to-br from-[#dff7f2] to-white p-6">
+          <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 p-6 border border-emerald-100">
             <div className="flex items-center gap-3">
-              <div className="flex size-14 items-center justify-center rounded-xl bg-[#0f766e] text-white">
+              <div className="flex size-14 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 text-white shadow-lg">
                 <DollarSign className="size-7" />
               </div>
               <div>
-                <p className="text-sm text-[#5c6d71]">当前余额</p>
-                <p className="text-3xl font-bold text-[#1d2529]">
+                <p className="text-sm text-slate-600">当前余额</p>
+                <p className="text-3xl font-bold text-slate-900">
                   ${currentBalance?.toFixed(2) ?? "--"}
                 </p>
               </div>
@@ -121,7 +121,7 @@ export function RechargePanel({
           </div>
 
           {history.length === 0 ? (
-            <div className="mt-4 rounded-2xl bg-[#fbfaf5] p-8 text-center text-sm text-[#5c6d71]">
+            <div className="mt-4 rounded-2xl bg-slate-50 border border-slate-200 p-8 text-center text-sm text-slate-600">
               暂无充值记录
             </div>
           ) : (

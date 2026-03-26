@@ -33,11 +33,6 @@ import { MetricCard } from "@/components/dashboard/metric-card";
 import { ModelBreakdown } from "@/components/dashboard/model-breakdown";
 import { SiteBalanceTable } from "@/components/dashboard/site-balance-table";
 import { TrendChart } from "@/components/dashboard/trend-chart";
-import { AppHeader } from "@/components/layout/app-header";
-import { SiteSidebar } from "@/components/layout/site-sidebar";
-import { DashboardTabs } from "@/components/dashboard/dashboard-tabs";
-import { TokenConsumption } from "@/components/tokens/token-consumption";
-import { RechargePanel } from "@/components/recharge/recharge-panel";
 import type {
   AuthType,
   DashboardData,

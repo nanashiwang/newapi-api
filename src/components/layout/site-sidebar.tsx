@@ -37,9 +37,9 @@ export function SiteSidebar({ sites, activeSiteId, onSelectSite, onAddSite }: Si
     site.currentBalance <= site.warningQuota;
 
   return (
-    <aside className="w-80 border-r border-black/5 bg-[#fbfaf5]">
+    <aside className="w-80 border-r border-white/20 bg-white/80 backdrop-blur-xl">
       <div className="flex h-full flex-col">
-        <div className="border-b border-black/5 p-4">
+        <div className="border-b border-slate-200 p-4">
           <button
             type="button"
             onClick={onAddSite}
@@ -61,7 +61,7 @@ export function SiteSidebar({ sites, activeSiteId, onSelectSite, onAddSite }: Si
                   <button
                     type="button"
                     onClick={() => toggleGroup(group)}
-                    className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-semibold text-[#1d2529] hover:bg-white/70"
+                    className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100 transition"
                   >
                     <div className="flex items-center gap-2">
                       {isExpanded ? (
@@ -70,10 +70,10 @@ export function SiteSidebar({ sites, activeSiteId, onSelectSite, onAddSite }: Si
                         <ChevronRight className="size-4" />
                       )}
                       <span>{group}</span>
-                      <span className="text-xs text-[#5c6d71]">({groupSites.length})</span>
+                      <span className="text-xs text-slate-500">({groupSites.length})</span>
                     </div>
                     {warningCount > 0 && (
-                      <span className="flex items-center gap-1 text-xs text-[#b34d33]">
+                      <span className="flex items-center gap-1 text-xs text-red-600">
                         <TriangleAlert className="size-3" />
                         {warningCount}
                       </span>
@@ -91,12 +91,12 @@ export function SiteSidebar({ sites, activeSiteId, onSelectSite, onAddSite }: Si
                             key={site.id}
                             type="button"
                             onClick={() => onSelectSite(site.id)}
-                            className={`flex w-full items-start gap-2 rounded-lg px-3 py-2 text-left text-sm transition ${
+                            className={`flex w-full items-start gap-2 rounded-xl px-3 py-2 text-left text-sm transition ${
                               isActive
-                                ? "bg-[#0f766e] text-white"
+                                ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg"
                                 : hasWarning
-                                  ? "bg-[#fff9f6] text-[#b34d33] hover:bg-[#fff4ef]"
-                                  : "text-[#4f5d62] hover:bg-white/70"
+                                  ? "bg-red-50 text-red-700 hover:bg-red-100"
+                                  : "text-slate-700 hover:bg-slate-100"
                             }`}
                           >
                             <Server className="mt-0.5 size-4 shrink-0" />
