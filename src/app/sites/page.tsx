@@ -1,7 +1,5 @@
-"use client";
-
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 
-export function MainApp() {
+export default function SitesPage() {
   return <DashboardShell section="sites" />;
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   useCallback,
   useDeferredValue,
@@ -52,6 +54,12 @@ import {
   shiftDate,
 } from "@/lib/formatters";
 
+export type DashboardSection = "sites" | "board" | "insights";
+
+type DashboardShellProps = {
+  section?: DashboardSection;
+};
+
 type SiteDraft = {
   id: string | null;
   name: string;
@@ -88,6 +96,58 @@ const RANGE_PRESETS = [
   { label: "24 小时", days: 1 },
   { label: "7 天", days: 7 },
   { label: "30 天", days: 30 },
+];
+
+const SECTION_META: Record<
+  DashboardSection,
+  {
+    eyebrow: string;
+    title: string;
+    description: string;
+  }
+> = {
+  sites: {
+    eyebrow: "Site Manager",
+    title: "把站点配置和查询参数收拢到独立页面。",
+    description:
+      "这个页面只负责站点新增、编辑、删除与查询区间配置，不再和图表、余额表混在一起。",
+  },
+  board: {
+    eyebrow: "Balance Board",
+    title: "专门看多站点余额表和横向对比。",
+    description:
+      "这里集中展示所有站点的余额、用量和同步状态，适合做批量巡检、筛选和导出。",
+  },
+  insights: {
+    eyebrow: "Active Site",
+    title: "专门看当前站点的画像、趋势和月卡信息。",
+    description:
+      "把图表、账户信号、模型消耗和连接摘要拆到独立页面，避免在一个长页里来回找内容。",
+  },
+};
+
+const SECTION_PATH_MAP: Record<DashboardSection, string> = {
+  sites: "/sites",
+  board: "/board",
+  insights: "/insights",
+};
+
+const SECTION_NAV_ITEMS = [
+  {
+    section: "sites" as const,
+    label: "站点管理",
+    icon: ShieldCheck,
+  },
+  {
+    section: "board" as const,
+    label: "余额看板",
+    icon: Rows3,
+  },
+  {
+    section: "insights" as const,
+    label: "站点洞察",
+    icon: Activity,
+  },
 ];
 
 function getAuthTypeLabel(authType: AuthType): string {
@@ -353,7 +413,10 @@ function buildSuccessSummary(site: SiteConfig, data: DashboardData): SiteSummary
   });
 }
 
-export function DashboardShell() {
+export function DashboardShell({
+  section = "sites",
+}: DashboardShellProps) {
+  const router = useRouter();
   const hasBootstrappedRef = useRef(false);
   const [sites, setSites] = useState<SiteConfig[]>([]);
   const [siteDraft, setSiteDraft] = useState<SiteDraft>(createEmptySiteDraft());
@@ -722,6 +785,7 @@ export function DashboardShell() {
       return;
     }
 
+    window.localStorage.setItem(ACTIVE_SITE_STORAGE_KEY, siteId);
     setActiveSiteId(siteId);
     setSiteDraft(siteToDraft(site));
   }
@@ -805,6 +869,10 @@ export function DashboardShell() {
   function handleEditSite(siteId: string) {
     handleSelectSite(siteId);
     setErrorMessage(null);
+
+    if (section !== "sites") {
+      router.push(SECTION_PATH_MAP.sites);
+    }
   }
 
   function handleDeleteSite(siteId: string) {
@@ -850,44 +918,162 @@ export function DashboardShell() {
     setErrorMessage(null);
   }
 
+  function jumpToSection(nextSection: DashboardSection, siteId?: string) {
+    if (siteId) {
+      handleSelectSite(siteId);
+    }
+
+    if (section !== nextSection) {
+      router.push(SECTION_PATH_MAP[nextSection]);
+    }
+  }
+
+  const sectionMeta = SECTION_META[section];
+  const hasSites = sites.length > 0;
+  const readySiteCount = orderedRows.filter((row) => row.status === "ready").length;
+  const errorSiteCount = orderedRows.filter((row) => row.status === "error").length;
+  const lowBalanceCount = orderedRows.filter(
+    (row) =>
+      row.warningQuota !== null &&
+      row.warningQuota > 0 &&
+      row.currentBalance !== null &&
+      row.currentBalance <= row.warningQuota,
+  ).length;
+  const syncedBalanceTotal = orderedRows.reduce(
+    (total, row) => total + (row.currentBalance ?? 0),
+    0,
+  );
+  const syncedQuotaTotal = orderedRows.reduce(
+    (total, row) => total + (row.periodQuota ?? 0),
+    0,
+  );
+  const hasSyncedBalance = orderedRows.some((row) => row.currentBalance !== null);
+  const hasSyncedQuota = orderedRows.some((row) => row.periodQuota !== null);
+  const activeSiteHost = activeSite ? parseHost(activeSite.baseUrl) : "未选择站点";
+  const activeSiteLastSynced = activeData
+    ? new Date(activeData.connection.lastSyncedAt).toLocaleString("zh-CN")
+    : "等待同步";
+  const queryRangeLabel = `${queryRange.startDate} 至 ${queryRange.endDate}`;
+
   return (
     <main className="shell-container">
       <section className="surface-card relative overflow-hidden p-6 sm:p-8">
         <div className="absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_top_left,rgba(217,103,73,0.2),transparent_48%),radial-gradient(circle_at_top_right,rgba(15,118,110,0.18),transparent_40%)]" />
-        <div className="relative grid gap-8 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
+        <div className="relative grid gap-8 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
           <div>
-            <span className="accent-pill">
-              <Sparkles className="size-3.5" />
-              Multi Site Quota Observatory
-            </span>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="accent-pill">
+                <Sparkles className="size-3.5" />
+                {sectionMeta.eyebrow}
+              </span>
+              <span className="rounded-full border border-black/5 bg-white/75 px-3 py-1 text-xs font-semibold text-[#5c6d71]">
+                {hasSites ? `${sites.length} 个站点已保存` : "尚未保存站点"}
+              </span>
+            </div>
             <h1 className="mt-5 max-w-3xl text-4xl font-semibold tracking-[-0.06em] text-[#1d2529] sm:text-5xl">
-              把多个 NewAPI 实例放进同一块额度看板里。
+              {sectionMeta.title}
             </h1>
             <p className="muted-copy mt-4 max-w-2xl text-base sm:text-lg">
-              现在不仅能看单站点明细，还能保存多个实例，在一个页面里做余额对比、跨站点切换和详细图表下钻。
+              {sectionMeta.description}
             </p>
+
+            <div className="mt-6 flex flex-wrap gap-3">
+              {SECTION_NAV_ITEMS.map((item) => {
+                const Icon = item.icon;
+                const isCurrent = item.section === section;
+
+                return (
+                  <Link
+                    key={item.section}
+                    href={SECTION_PATH_MAP[item.section]}
+                    className={`inline-flex items-center gap-2 rounded-full px-4 py-3 text-sm font-semibold transition ${
+                      isCurrent
+                        ? "bg-[#1d2529] text-white shadow-[0_18px_40px_-24px_rgba(29,37,41,0.7)]"
+                        : "border border-black/5 bg-white/75 text-[#1d2529] hover:bg-white"
+                    }`}
+                  >
+                    <Icon className="size-4" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <article className="rounded-[1.75rem] border border-white/70 bg-emerald-50 p-5">
-              <p className="stat-note">Multi Site</p>
-              <p className="mt-3 text-lg font-semibold text-[#1d2529]">
-                本地保存多个 NewAPI 实例
-              </p>
-              <p className="mt-2 text-sm leading-6 text-[#5c6d71]">
-                每个站点单独保存地址和鉴权信息，余额表统一展示，详细图表按活动站点切换。
-              </p>
-            </article>
+            {section === "sites" ? (
+              <>
+                <article className="rounded-[1.75rem] border border-white/70 bg-emerald-50 p-5">
+                  <p className="stat-note">Local Vault</p>
+                  <p className="mt-3 text-lg font-semibold text-[#1d2529]">
+                    已保存 {formatNumber(sites.length)} 个站点
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-[#5c6d71]">
+                    浏览器本地保存地址、鉴权方式和用户 ID，切换设备时需要重新导入。
+                  </p>
+                </article>
 
-            <article className="rounded-[1.75rem] border border-white/70 bg-amber-50 p-5">
-              <p className="stat-note">Guardrail</p>
-              <p className="mt-3 text-lg font-semibold text-[#1d2529]">
-                单次查询最多 30 天
-              </p>
-              <p className="mt-2 text-sm leading-6 text-[#5c6d71]">
-                保持和 NewAPI `/api/data/self` 接口约束一致，避免批量刷新时被上游直接拒绝。
-              </p>
-            </article>
+                <article className="rounded-[1.75rem] border border-white/70 bg-amber-50 p-5">
+                  <p className="stat-note">Range Guardrail</p>
+                  <p className="mt-3 text-lg font-semibold text-[#1d2529]">
+                    {queryRangeLabel}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-[#5c6d71]">
+                    当前所有站点共用这段查询区间，单次刷新依然保持最多 30 天。
+                  </p>
+                </article>
+              </>
+            ) : null}
+
+            {section === "board" ? (
+              <>
+                <article className="rounded-[1.75rem] border border-white/70 bg-emerald-50 p-5">
+                  <p className="stat-note">Synced Sites</p>
+                  <p className="mt-3 text-lg font-semibold text-[#1d2529]">
+                    {formatNumber(readySiteCount)} 个站点已同步
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-[#5c6d71]">
+                    {errorSiteCount > 0
+                      ? `另有 ${formatNumber(errorSiteCount)} 个站点同步失败，需要检查鉴权或地址。`
+                      : "所有已同步站点都会参与余额总览和横向对比。"}
+                  </p>
+                </article>
+
+                <article className="rounded-[1.75rem] border border-white/70 bg-amber-50 p-5">
+                  <p className="stat-note">Cross Site Balance</p>
+                  <p className="mt-3 text-lg font-semibold text-[#1d2529]">
+                    {hasSyncedBalance ? formatNumber(syncedBalanceTotal) : "--"}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-[#5c6d71]">
+                    {lowBalanceCount > 0
+                      ? `当前有 ${formatNumber(lowBalanceCount)} 个站点命中低余额预警。`
+                      : "余额总和按已成功同步的站点实时汇总。"}
+                  </p>
+                </article>
+              </>
+            ) : null}
+
+            {section === "insights" ? (
+              <>
+                <article className="rounded-[1.75rem] border border-white/70 bg-emerald-50 p-5">
+                  <p className="stat-note">Active Site</p>
+                  <p className="mt-3 text-lg font-semibold text-[#1d2529]">
+                    {activeSite?.name || "未选择站点"}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-[#5c6d71]">{activeSiteHost}</p>
+                </article>
+
+                <article className="rounded-[1.75rem] border border-white/70 bg-amber-50 p-5">
+                  <p className="stat-note">Last Sync</p>
+                  <p className="mt-3 text-lg font-semibold text-[#1d2529]">
+                    {activeSiteLastSynced}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-[#5c6d71]">
+                    站点洞察会复用当前活动站点最近一次同步得到的数据和月卡信息。
+                  </p>
+                </article>
+              </>
+            ) : null}
           </div>
         </div>
       </section>
@@ -898,8 +1084,13 @@ export function DashboardShell() {
         </div>
       ) : null}
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[400px_minmax(0,1fr)]">
-        <aside className="surface-card p-6">
+      <div
+        className={`mt-6 grid gap-6 ${
+          section === "sites" ? "xl:grid-cols-[400px_minmax(0,1fr)]" : ""
+        }`}
+      >
+        {section === "sites" ? (
+          <aside className="surface-card p-6">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="stat-note">Site Manager</p>
@@ -1238,50 +1429,355 @@ export function DashboardShell() {
               清空全部本地配置
             </button>
           </div>
-        </aside>
+          </aside>
+        ) : null}
 
         <div className="grid gap-6">
-          <SiteBalanceTable
-            rows={orderedRows}
-            activeSiteId={activeSiteId}
-            isRefreshingAll={isRefreshingAll}
-            refreshingSiteId={refreshingSiteId}
-            range={queryRange}
-            onSelect={handleSelectSite}
-            onEditSite={handleEditSite}
-            onDeleteSite={handleDeleteSite}
-            onRefreshSite={(siteId) => {
-              const site = sites.find((item) => item.id === siteId);
-              if (site) {
-                void refreshSingleSite(site, { activate: site.id === activeSiteId });
-              }
-            }}
-            onRefreshAll={() => {
-              void refreshAllSites();
-            }}
-          />
+          {section === "sites" ? (
+            <>
+              <section className="surface-card p-6">
+                <div className="flex flex-col gap-4 border-b border-black/5 pb-5 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <p className="stat-note">Active Site Snapshot</p>
+                    <h2 className="section-title mt-2">
+                      {activeSite?.name || "尚未选择活动站点"}
+                    </h2>
+                    <p className="muted-copy mt-2">
+                      站点管理页只负责配置本身。余额对比和详细洞察已经拆到独立页面。
+                    </p>
+                  </div>
 
-          <section className="surface-card p-6">
-            <div className="flex flex-col gap-4 border-b border-black/5 pb-5 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="stat-note">Active Site</p>
-                <h2 className="section-title mt-2">
-                  {activeSite?.name || "未选择站点"}
-                </h2>
-                <p className="muted-copy mt-2">
-                  {activeSite
-                    ? `当前正在查看 ${parseHost(activeSite.baseUrl)} 的详细额度画像和模型消耗。`
-                    : "先从左侧保存一个站点，或在上方余额表里选择一个站点。"}
-                </p>
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => jumpToSection("board")}
+                      disabled={!hasSites}
+                    >
+                      <Rows3 className="size-4" />
+                      打开余额看板
+                    </button>
+                    <button
+                      type="button"
+                      className="primary-button"
+                      onClick={() => activeSite && jumpToSection("insights", activeSite.id)}
+                      disabled={!activeSite}
+                    >
+                      <Activity className="size-4" />
+                      查看站点洞察
+                    </button>
+                  </div>
+                </div>
+
+                {activeSite ? (
+                  <div className="mt-6 grid gap-4 md:grid-cols-2">
+                    <article className="rounded-[1.5rem] border border-black/5 bg-[#fbfaf5] p-5">
+                      <p className="field-label">连接信息</p>
+                      <p className="mt-3 text-lg font-semibold text-[#1d2529]">
+                        {parseHost(activeSite.baseUrl)}
+                      </p>
+                      <div className="mt-4 flex flex-wrap gap-2 text-xs text-[#5c6d71]">
+                        <span className="rounded-full bg-white px-3 py-1">
+                          鉴权：{getAuthTypeLabel(activeSite.authType)}
+                        </span>
+                        <span className="rounded-full bg-white px-3 py-1">
+                          分组：{activeSite.group || "未分组"}
+                        </span>
+                        <span className="rounded-full bg-white px-3 py-1">
+                          阈值：
+                          {activeSite.warningQuota === null
+                            ? "未设置"
+                            : formatNumber(activeSite.warningQuota)}
+                        </span>
+                      </div>
+                      <p className="mt-4 break-all text-sm leading-6 text-[#5c6d71]">
+                        {activeSite.baseUrl}
+                      </p>
+                    </article>
+
+                    <article className="rounded-[1.5rem] border border-black/5 bg-[#fbfaf5] p-5">
+                      <p className="field-label">最近同步快照</p>
+                      <p className="mt-3 text-lg font-semibold text-[#1d2529]">
+                        {activeData ? formatNumber(activeData.overview.currentBalance) : "等待同步"}
+                      </p>
+                      <p className="mt-2 text-sm text-[#5c6d71]">
+                        {activeData
+                          ? `当前余额，最近同步时间为 ${activeSiteLastSynced}。`
+                          : "保存后会自动请求接口并回填当前余额、请求数和模型拆解。"}
+                      </p>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-2xl bg-white px-4 py-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#7a898d]">
+                            历史已用
+                          </p>
+                          <p className="mt-2 text-base font-semibold text-[#1d2529]">
+                            {formatNumber(activeData?.overview.historicalUsage ?? 0)}
+                          </p>
+                        </div>
+                        <div className="rounded-2xl bg-white px-4 py-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#7a898d]">
+                            月卡剩余
+                          </p>
+                          <p className="mt-2 text-base font-semibold text-[#1d2529]">
+                            {formatUsd(activeData?.billing.remainingUsd ?? null)}
+                          </p>
+                        </div>
+                      </div>
+                    </article>
+                  </div>
+                ) : (
+                  <div className="mt-6 flex min-h-[240px] items-center justify-center rounded-[1.75rem] bg-[#fbfaf5] text-center text-sm text-[#5c6d71]">
+                    先保存一个站点，右侧就会展示活动站点快照，并且可以跳到余额看板或站点洞察。
+                  </div>
+                )}
+              </section>
+
+              <section className="surface-card p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="stat-note">Page Split</p>
+                    <h2 className="section-title mt-2">新的页面分工</h2>
+                    <p className="muted-copy mt-2">
+                      以后都基于这套新布局渲染，不再回到旧的单页堆叠模式。
+                    </p>
+                  </div>
+                  <Rows3 className="size-5 text-[#0f766e]" />
+                </div>
+
+                <div className="mt-6 grid gap-4 lg:grid-cols-3">
+                  {SECTION_NAV_ITEMS.map((item) => {
+                    const Icon = item.icon;
+                    const isCurrent = item.section === section;
+                    const meta = SECTION_META[item.section];
+
+                    return (
+                      <Link
+                        key={item.section}
+                        href={SECTION_PATH_MAP[item.section]}
+                        className={`rounded-[1.5rem] border p-5 transition ${
+                          isCurrent
+                            ? "border-[#0f766e]/20 bg-emerald-50"
+                            : "border-black/5 bg-[#fbfaf5] hover:bg-white"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="flex size-11 items-center justify-center rounded-2xl bg-white text-[#1d2529]">
+                            <Icon className="size-5" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-[#1d2529]">{item.label}</p>
+                            <p className="mt-1 text-xs uppercase tracking-[0.18em] text-[#7a898d]">
+                              {meta.eyebrow}
+                            </p>
+                          </div>
+                        </div>
+                        <p className="mt-4 text-sm leading-6 text-[#5c6d71]">{meta.description}</p>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </section>
+            </>
+          ) : null}
+
+          {section === "board" ? (
+            <>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <MetricCard
+                  icon={ShieldCheck}
+                  tone="teal"
+                  label="已保存站点"
+                  value={formatNumber(sites.length)}
+                  detail="本地已保存的 NewAPI 实例数量"
+                />
+                <MetricCard
+                  icon={RefreshCcw}
+                  tone="amber"
+                  label="已同步站点"
+                  value={formatNumber(readySiteCount)}
+                  detail={
+                    errorSiteCount > 0
+                      ? `另有 ${formatNumber(errorSiteCount)} 个站点同步失败`
+                      : "同步成功的站点会参与总览汇总"
+                  }
+                />
+                <MetricCard
+                  icon={Wallet}
+                  tone="slate"
+                  label="总余额"
+                  value={hasSyncedBalance ? formatNumber(syncedBalanceTotal) : "--"}
+                  detail="按已成功同步站点的当前余额求和"
+                />
+                <MetricCard
+                  icon={ScanLine}
+                  tone="coral"
+                  label="区间总消耗"
+                  value={hasSyncedQuota ? formatNumber(syncedQuotaTotal) : "--"}
+                  detail={
+                    lowBalanceCount > 0
+                      ? `${formatNumber(lowBalanceCount)} 个站点触发低余额预警`
+                      : "当前筛选站点没有低余额预警"
+                  }
+                />
               </div>
 
-              {activeSite ? (
-                <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">
-                  <Rows3 className="size-4" />
-                  {getAuthTypeLabel(activeSite.authType)}
+              <SiteBalanceTable
+                rows={orderedRows}
+                activeSiteId={activeSiteId}
+                isRefreshingAll={isRefreshingAll}
+                refreshingSiteId={refreshingSiteId}
+                range={queryRange}
+                onSelect={(siteId) => jumpToSection("insights", siteId)}
+                onEditSite={handleEditSite}
+                onDeleteSite={handleDeleteSite}
+                onRefreshSite={(siteId) => {
+                  const site = sites.find((item) => item.id === siteId);
+                  if (site) {
+                    void refreshSingleSite(site, { activate: site.id === activeSiteId });
+                  }
+                }}
+                onRefreshAll={() => {
+                  void refreshAllSites();
+                }}
+              />
+
+              <section className="surface-card p-6">
+                <div className="flex flex-col gap-4 border-b border-black/5 pb-5 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <p className="stat-note">Selected Site</p>
+                    <h2 className="section-title mt-2">
+                      {activeSite?.name || "还没有选中站点"}
+                    </h2>
+                    <p className="muted-copy mt-2">
+                      在余额表中点击“查看详情”会直接跳到站点洞察页，点击“编辑”则回到站点管理页。
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => activeSite && jumpToSection("sites", activeSite.id)}
+                      disabled={!activeSite}
+                    >
+                      <ShieldCheck className="size-4" />
+                      编辑当前站点
+                    </button>
+                    <button
+                      type="button"
+                      className="primary-button"
+                      onClick={() => activeSite && jumpToSection("insights", activeSite.id)}
+                      disabled={!activeSite}
+                    >
+                      <Activity className="size-4" />
+                      打开站点洞察
+                    </button>
+                  </div>
                 </div>
-              ) : null}
-            </div>
+
+                <div className="mt-6 grid gap-4 md:grid-cols-3">
+                  <article className="rounded-[1.5rem] border border-black/5 bg-[#fbfaf5] p-5">
+                    <p className="field-label">当前活动站点</p>
+                    <p className="mt-3 text-lg font-semibold text-[#1d2529]">
+                      {activeSite?.name || "未选择站点"}
+                    </p>
+                    <p className="mt-2 text-sm text-[#5c6d71]">{activeSiteHost}</p>
+                  </article>
+
+                  <article className="rounded-[1.5rem] border border-black/5 bg-[#fbfaf5] p-5">
+                    <p className="field-label">查询区间</p>
+                    <p className="mt-3 text-lg font-semibold text-[#1d2529]">
+                      {queryRangeLabel}
+                    </p>
+                    <p className="mt-2 text-sm text-[#5c6d71]">
+                      所有站点共享同一段统计区间，便于统一比较。
+                    </p>
+                  </article>
+
+                  <article className="rounded-[1.5rem] border border-black/5 bg-[#fbfaf5] p-5">
+                    <p className="field-label">异常站点</p>
+                    <p className="mt-3 text-lg font-semibold text-[#1d2529]">
+                      {formatNumber(errorSiteCount)}
+                    </p>
+                    <p className="mt-2 text-sm text-[#5c6d71]">
+                      同步失败时优先检查地址、session、Authorization 或 New-Api-User。
+                    </p>
+                  </article>
+                </div>
+              </section>
+            </>
+          ) : null}
+
+          {section === "insights" ? (
+            <>
+              <section className="surface-card p-6">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                  <div>
+                    <p className="stat-note">Active Site</p>
+                    <h2 className="section-title mt-2">
+                      {activeSite?.name || "未选择站点"}
+                    </h2>
+                    <p className="muted-copy mt-2">
+                      {activeSite
+                        ? `当前正在查看 ${parseHost(activeSite.baseUrl)} 的详细额度画像、趋势和模型消耗。`
+                        : "先从站点管理页保存一个站点，或在余额看板里选择一个站点。"}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
+                    {activeSite ? (
+                      <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">
+                        <Rows3 className="size-4" />
+                        {getAuthTypeLabel(activeSite.authType)}
+                      </div>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => activeSite && jumpToSection("board", activeSite.id)}
+                      disabled={!activeSite}
+                    >
+                      <Rows3 className="size-4" />
+                      返回余额看板
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => activeSite && jumpToSection("sites", activeSite.id)}
+                      disabled={!activeSite}
+                    >
+                      <ShieldCheck className="size-4" />
+                      编辑站点配置
+                    </button>
+                    <button
+                      type="button"
+                      className="primary-button"
+                      disabled={!activeSite || refreshingSiteId === activeSite.id}
+                      onClick={() =>
+                        activeSite && void refreshSingleSite(activeSite, { activate: true })
+                      }
+                    >
+                      {activeSite && refreshingSiteId === activeSite.id ? (
+                        <LoaderCircle className="size-4 animate-spin" />
+                      ) : (
+                        <RefreshCcw className="size-4" />
+                      )}
+                      刷新当前站点
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              <section className="surface-card p-6">
+                <div className="flex flex-col gap-4 border-b border-black/5 pb-5 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <p className="stat-note">Quota Overview</p>
+                    <h2 className="section-title mt-2">额度概览</h2>
+                    <p className="muted-copy mt-2">
+                      当前查询区间为 {queryRangeLabel}，基础额度和月卡数据会一起展示。
+                    </p>
+                  </div>
+                </div>
 
             <div className="mt-6 grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
               <MetricCard
@@ -1546,20 +2042,22 @@ export function DashboardShell() {
                       <Sparkles className="size-4 text-[#0f766e]" />
                       额外提示
                     </div>
-                    <ul className="mt-3 space-y-2 text-sm leading-6 text-[#5c6d71]">
-                      <li>余额表会保留各站点最近一次同步结果，方便横向对比。</li>
-                      <li>点击余额表任意行即可切换详细图表，不需要重新填写连接。</li>
-                      <li>如果某个站点失败，优先检查地址、session 是否过期，或 New-Api-User 是否正确。</li>
-                    </ul>
+                      <ul className="mt-3 space-y-2 text-sm leading-6 text-[#5c6d71]">
+                        <li>余额表会保留各站点最近一次同步结果，方便横向对比。</li>
+                        <li>在余额看板里点击“查看详情”会直接切到这个洞察页面。</li>
+                        <li>如果某个站点失败，优先检查地址、session 是否过期，或 New-Api-User 是否正确。</li>
+                      </ul>
                   </article>
                 </div>
               ) : (
                 <div className="mt-6 flex min-h-[360px] items-center justify-center rounded-[1.75rem] bg-[#fbfaf5] text-center text-sm text-[#5c6d71]">
-                  当前还没有活动站点详情，先保存并同步一个站点。
+                  当前还没有活动站点详情，先刷新一次站点数据。
                 </div>
               )}
             </section>
           </div>
+            </>
+          ) : null}
         </div>
       </div>
     </main>
