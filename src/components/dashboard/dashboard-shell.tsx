@@ -957,8 +957,36 @@ export function DashboardShell({
 
   return (
     <main className="shell-container">
+      <header className="dashboard-topbar">
+        <div className="dashboard-brand">
+          <h1>NewAPI 额度统计平台</h1>
+          <p>多站点额度集中查看、余额预警与单站点深度分析。</p>
+        </div>
+
+        <div className="dashboard-toolbar">
+          <span className="toolbar-chip">站点 {formatNumber(sites.length)}</span>
+          <span className="toolbar-chip">已同步 {formatNumber(readySiteCount)}</span>
+          <span className="toolbar-chip">区间 {queryRangeLabel}</span>
+          {section !== "sites" ? (
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => void refreshAllSites()}
+              disabled={!hasSites || isRefreshingAll}
+            >
+              {isRefreshingAll ? (
+                <LoaderCircle className="size-4 animate-spin" />
+              ) : (
+                <RefreshCcw className="size-4" />
+              )}
+              刷新全部
+            </button>
+          ) : null}
+        </div>
+      </header>
+
       <section className="surface-card relative overflow-hidden p-6 sm:p-8">
-        <div className="absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_top_left,rgba(217,103,73,0.2),transparent_48%),radial-gradient(circle_at_top_right,rgba(15,118,110,0.18),transparent_40%)]" />
+        <div className="absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_top_left,rgba(110,168,254,0.18),transparent_48%),radial-gradient(circle_at_top_right,rgba(40,199,111,0.14),transparent_40%)]" />
         <div className="relative grid gap-8 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
           <div>
             <div className="flex flex-wrap items-center gap-3">
@@ -966,11 +994,11 @@ export function DashboardShell({
                 <Sparkles className="size-3.5" />
                 {sectionMeta.eyebrow}
               </span>
-              <span className="rounded-full border border-black/5 bg-white/75 px-3 py-1 text-xs font-semibold text-[#5c6d71]">
+              <span className="rounded-full border border-white/8 bg-[rgba(19,26,45,0.82)] px-3 py-1 text-xs font-semibold text-[var(--muted)]">
                 {hasSites ? `${sites.length} 个站点已保存` : "尚未保存站点"}
               </span>
             </div>
-            <h1 className="mt-5 max-w-3xl text-4xl font-semibold tracking-[-0.06em] text-[#1d2529] sm:text-5xl">
+            <h1 className="mt-5 max-w-3xl text-4xl font-semibold tracking-[-0.06em] text-[var(--text)] sm:text-5xl">
               {sectionMeta.title}
             </h1>
             <p className="muted-copy mt-4 max-w-2xl text-base sm:text-lg">
@@ -989,7 +1017,7 @@ export function DashboardShell({
                     className={`inline-flex items-center gap-2 rounded-full px-4 py-3 text-sm font-semibold transition ${
                       isCurrent
                         ? "bg-[#1d2529] text-white shadow-[0_18px_40px_-24px_rgba(29,37,41,0.7)]"
-                        : "border border-black/5 bg-white/75 text-[#1d2529] hover:bg-white"
+                        : "border border-white/8 bg-[rgba(19,26,45,0.82)] text-[var(--text)] hover:bg-[var(--panel)]"
                     }`}
                   >
                     <Icon className="size-4" />
@@ -1003,22 +1031,22 @@ export function DashboardShell({
           <div className="grid gap-4 sm:grid-cols-2">
             {section === "sites" ? (
               <>
-                <article className="rounded-[1.75rem] border border-white/70 bg-emerald-50 p-5">
+                <article className="rounded-[1.75rem] border border-white/70 bg-[linear-gradient(180deg,rgba(40,199,111,0.16),rgba(40,199,111,0.04))] p-5">
                   <p className="stat-note">Local Vault</p>
-                  <p className="mt-3 text-lg font-semibold text-[#1d2529]">
+                  <p className="mt-3 text-lg font-semibold text-[var(--text)]">
                     已保存 {formatNumber(sites.length)} 个站点
                   </p>
-                  <p className="mt-2 text-sm leading-6 text-[#5c6d71]">
+                  <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
                     浏览器本地保存地址、鉴权方式和用户 ID，切换设备时需要重新导入。
                   </p>
                 </article>
 
-                <article className="rounded-[1.75rem] border border-white/70 bg-amber-50 p-5">
+                <article className="rounded-[1.75rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,176,32,0.16),rgba(255,176,32,0.04))] p-5">
                   <p className="stat-note">Range Guardrail</p>
-                  <p className="mt-3 text-lg font-semibold text-[#1d2529]">
+                  <p className="mt-3 text-lg font-semibold text-[var(--text)]">
                     {queryRangeLabel}
                   </p>
-                  <p className="mt-2 text-sm leading-6 text-[#5c6d71]">
+                  <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
                     当前所有站点共用这段查询区间，单次刷新依然保持最多 30 天。
                   </p>
                 </article>
@@ -1027,24 +1055,24 @@ export function DashboardShell({
 
             {section === "board" ? (
               <>
-                <article className="rounded-[1.75rem] border border-white/70 bg-emerald-50 p-5">
+                <article className="rounded-[1.75rem] border border-white/70 bg-[linear-gradient(180deg,rgba(40,199,111,0.16),rgba(40,199,111,0.04))] p-5">
                   <p className="stat-note">Synced Sites</p>
-                  <p className="mt-3 text-lg font-semibold text-[#1d2529]">
+                  <p className="mt-3 text-lg font-semibold text-[var(--text)]">
                     {formatNumber(readySiteCount)} 个站点已同步
                   </p>
-                  <p className="mt-2 text-sm leading-6 text-[#5c6d71]">
+                  <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
                     {errorSiteCount > 0
                       ? `另有 ${formatNumber(errorSiteCount)} 个站点同步失败，需要检查鉴权或地址。`
                       : "所有已同步站点都会参与余额总览和横向对比。"}
                   </p>
                 </article>
 
-                <article className="rounded-[1.75rem] border border-white/70 bg-amber-50 p-5">
+                <article className="rounded-[1.75rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,176,32,0.16),rgba(255,176,32,0.04))] p-5">
                   <p className="stat-note">Cross Site Balance</p>
-                  <p className="mt-3 text-lg font-semibold text-[#1d2529]">
+                  <p className="mt-3 text-lg font-semibold text-[var(--text)]">
                     {hasSyncedBalance ? formatNumber(syncedBalanceTotal) : "--"}
                   </p>
-                  <p className="mt-2 text-sm leading-6 text-[#5c6d71]">
+                  <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
                     {lowBalanceCount > 0
                       ? `当前有 ${formatNumber(lowBalanceCount)} 个站点命中低余额预警。`
                       : "余额总和按已成功同步的站点实时汇总。"}
@@ -1055,20 +1083,20 @@ export function DashboardShell({
 
             {section === "insights" ? (
               <>
-                <article className="rounded-[1.75rem] border border-white/70 bg-emerald-50 p-5">
+                <article className="rounded-[1.75rem] border border-white/70 bg-[linear-gradient(180deg,rgba(40,199,111,0.16),rgba(40,199,111,0.04))] p-5">
                   <p className="stat-note">Active Site</p>
-                  <p className="mt-3 text-lg font-semibold text-[#1d2529]">
+                  <p className="mt-3 text-lg font-semibold text-[var(--text)]">
                     {activeSite?.name || "未选择站点"}
                   </p>
-                  <p className="mt-2 text-sm leading-6 text-[#5c6d71]">{activeSiteHost}</p>
+                  <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{activeSiteHost}</p>
                 </article>
 
-                <article className="rounded-[1.75rem] border border-white/70 bg-amber-50 p-5">
+                <article className="rounded-[1.75rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,176,32,0.16),rgba(255,176,32,0.04))] p-5">
                   <p className="stat-note">Last Sync</p>
-                  <p className="mt-3 text-lg font-semibold text-[#1d2529]">
+                  <p className="mt-3 text-lg font-semibold text-[var(--text)]">
                     {activeSiteLastSynced}
                   </p>
-                  <p className="mt-2 text-sm leading-6 text-[#5c6d71]">
+                  <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
                     站点洞察会复用当前活动站点最近一次同步得到的数据和月卡信息。
                   </p>
                 </article>
@@ -1079,7 +1107,7 @@ export function DashboardShell({
       </section>
 
       {errorMessage ? (
-        <div className="mt-6 rounded-[1.5rem] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">
+        <div className="mt-6 rounded-[1.5rem] border border-[rgba(255,91,91,0.22)] bg-[rgba(255,91,91,0.12)] px-5 py-4 text-sm text-[#ff9d9d]">
           {errorMessage}
         </div>
       ) : null}
@@ -1157,7 +1185,7 @@ export function DashboardShell({
                     }))
                   }
                 />
-                <p className="text-xs leading-5 text-[#7a898d]">
+                <p className="text-xs leading-5 text-[var(--muted)]">
                   当余额小于等于该值时，余额表会自动高亮提醒。
                 </p>
               </div>
@@ -1240,15 +1268,15 @@ export function DashboardShell({
                   }))
                 }
               />
-              <p className="text-xs leading-5 text-[#7a898d]">
+              <p className="text-xs leading-5 text-[var(--muted)]">
                 如果站点的 `/api/user/self` 也要求 `New-Api-User`，请在这里手动填写用户 ID。
               </p>
             </div>
 
-            <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
+            <div className="rounded-[1.5rem] border border-white/10 bg-[var(--panel-2)] p-4">
               <div className="flex items-center gap-2">
                 <CalendarRange className="size-4 text-[#d96749]" />
-                <p className="text-sm font-semibold text-[#1d2529]">全局查询区间</p>
+                <p className="text-sm font-semibold text-[var(--text)]">全局查询区间</p>
               </div>
 
               <div className="mt-4 space-y-3">
@@ -1258,7 +1286,7 @@ export function DashboardShell({
                       key={preset.label}
                       type="button"
                       onClick={() => applyPreset(preset.days)}
-                      className="rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                      className="rounded-full border border-white/10 bg-[var(--panel)] px-3 py-2 text-sm font-semibold text-[var(--text)] transition hover:bg-[var(--panel-2)]"
                     >
                       {preset.label}
                     </button>
@@ -1351,15 +1379,15 @@ export function DashboardShell({
             </div>
           </div>
 
-          <div className="mt-6 rounded-[1.5rem] border border-black/5 bg-[#fbfaf5] p-4">
+          <div className="mt-6 rounded-[1.5rem] border border-white/8 bg-[var(--panel-2)] p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-[#1d2529]">已保存站点</p>
-                <p className="mt-1 text-sm text-[#5c6d71]">
+                <p className="text-sm font-semibold text-[var(--text)]">已保存站点</p>
+                <p className="mt-1 text-sm text-[var(--muted)]">
                   点击任意卡片即可切换活动站点并回填到表单。
                 </p>
               </div>
-              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#5c6d71]">
+              <span className="rounded-full bg-[var(--panel)] px-3 py-1 text-xs font-semibold text-[var(--muted)]">
                 {sites.length} 个
               </span>
             </div>
@@ -1377,28 +1405,28 @@ export function DashboardShell({
                       onClick={() => handleSelectSite(site.id)}
                       className={`w-full rounded-[1.25rem] border px-4 py-3 text-left transition ${
                         isActive
-                          ? "border-[#0f766e]/20 bg-white shadow-[0_10px_30px_-20px_rgba(15,118,110,0.45)]"
-                          : "border-black/5 bg-white/70 hover:bg-white"
+                          ? "border-[#0f766e]/20 bg-[var(--panel)] shadow-[0_10px_30px_-20px_rgba(15,118,110,0.45)]"
+                          : "border-white/8 bg-[rgba(19,26,45,0.76)] hover:bg-[var(--panel)]"
                       }`}
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="text-sm font-semibold text-[#1d2529]">{site.name}</p>
-                          <p className="mt-1 text-xs text-[#5c6d71]">
+                          <p className="text-sm font-semibold text-[var(--text)]">{site.name}</p>
+                          <p className="mt-1 text-xs text-[var(--muted)]">
                             {parseHost(site.baseUrl)}
                           </p>
                           <div className="mt-3 flex flex-wrap gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-[#6a777b]">
-                            <span className="rounded-full bg-slate-100 px-3 py-1">
+                            <span className="rounded-full bg-[rgba(255,255,255,0.06)] px-3 py-1">
                               {site.group || "未分组"}
                             </span>
                             {site.warningQuota !== null ? (
-                              <span className="rounded-full bg-rose-100 px-3 py-1 text-rose-700">
+                              <span className="rounded-full bg-[rgba(255,91,91,0.16)] px-3 py-1 text-[#ff9d9d]">
                                 阈值 {formatNumber(site.warningQuota)}
                               </span>
                             ) : null}
                           </div>
                         </div>
-                        <div className="rounded-full bg-slate-100 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-slate-600">
+                        <div className="rounded-full bg-[rgba(255,255,255,0.06)] px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
                           {summary?.status === "ready"
                             ? "正常"
                             : summary?.status === "loading"
@@ -1412,7 +1440,7 @@ export function DashboardShell({
                   );
                 })
               ) : (
-                <div className="rounded-[1.25rem] bg-white/70 px-4 py-6 text-sm text-[#5c6d71]">
+                <div className="rounded-[1.25rem] bg-[rgba(19,26,45,0.76)] px-4 py-6 text-sm text-[var(--muted)]">
                   还没有保存任何站点，先把一个 NewAPI 实例保存下来。
                 </div>
               )}
@@ -1436,7 +1464,7 @@ export function DashboardShell({
           {section === "sites" ? (
             <>
               <section className="surface-card p-6">
-                <div className="flex flex-col gap-4 border-b border-black/5 pb-5 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-col gap-4 border-b border-white/8 pb-5 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <p className="stat-note">Active Site Snapshot</p>
                     <h2 className="section-title mt-2">
@@ -1471,54 +1499,54 @@ export function DashboardShell({
 
                 {activeSite ? (
                   <div className="mt-6 grid gap-4 md:grid-cols-2">
-                    <article className="rounded-[1.5rem] border border-black/5 bg-[#fbfaf5] p-5">
+                    <article className="rounded-[1.5rem] border border-white/8 bg-[var(--panel-2)] p-5">
                       <p className="field-label">连接信息</p>
-                      <p className="mt-3 text-lg font-semibold text-[#1d2529]">
+                      <p className="mt-3 text-lg font-semibold text-[var(--text)]">
                         {parseHost(activeSite.baseUrl)}
                       </p>
-                      <div className="mt-4 flex flex-wrap gap-2 text-xs text-[#5c6d71]">
-                        <span className="rounded-full bg-white px-3 py-1">
+                      <div className="mt-4 flex flex-wrap gap-2 text-xs text-[var(--muted)]">
+                        <span className="rounded-full bg-[var(--panel)] px-3 py-1">
                           鉴权：{getAuthTypeLabel(activeSite.authType)}
                         </span>
-                        <span className="rounded-full bg-white px-3 py-1">
+                        <span className="rounded-full bg-[var(--panel)] px-3 py-1">
                           分组：{activeSite.group || "未分组"}
                         </span>
-                        <span className="rounded-full bg-white px-3 py-1">
+                        <span className="rounded-full bg-[var(--panel)] px-3 py-1">
                           阈值：
                           {activeSite.warningQuota === null
                             ? "未设置"
                             : formatNumber(activeSite.warningQuota)}
                         </span>
                       </div>
-                      <p className="mt-4 break-all text-sm leading-6 text-[#5c6d71]">
+                      <p className="mt-4 break-all text-sm leading-6 text-[var(--muted)]">
                         {activeSite.baseUrl}
                       </p>
                     </article>
 
-                    <article className="rounded-[1.5rem] border border-black/5 bg-[#fbfaf5] p-5">
+                    <article className="rounded-[1.5rem] border border-white/8 bg-[var(--panel-2)] p-5">
                       <p className="field-label">最近同步快照</p>
-                      <p className="mt-3 text-lg font-semibold text-[#1d2529]">
+                      <p className="mt-3 text-lg font-semibold text-[var(--text)]">
                         {activeData ? formatNumber(activeData.overview.currentBalance) : "等待同步"}
                       </p>
-                      <p className="mt-2 text-sm text-[#5c6d71]">
+                      <p className="mt-2 text-sm text-[var(--muted)]">
                         {activeData
                           ? `当前余额，最近同步时间为 ${activeSiteLastSynced}。`
                           : "保存后会自动请求接口并回填当前余额、请求数和模型拆解。"}
                       </p>
                       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                        <div className="rounded-2xl bg-white px-4 py-3">
-                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#7a898d]">
+                        <div className="rounded-2xl bg-[var(--panel)] px-4 py-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">
                             历史已用
                           </p>
-                          <p className="mt-2 text-base font-semibold text-[#1d2529]">
+                          <p className="mt-2 text-base font-semibold text-[var(--text)]">
                             {formatNumber(activeData?.overview.historicalUsage ?? 0)}
                           </p>
                         </div>
-                        <div className="rounded-2xl bg-white px-4 py-3">
-                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#7a898d]">
+                        <div className="rounded-2xl bg-[var(--panel)] px-4 py-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">
                             月卡剩余
                           </p>
-                          <p className="mt-2 text-base font-semibold text-[#1d2529]">
+                          <p className="mt-2 text-base font-semibold text-[var(--text)]">
                             {formatUsd(activeData?.billing.remainingUsd ?? null)}
                           </p>
                         </div>
@@ -1526,7 +1554,7 @@ export function DashboardShell({
                     </article>
                   </div>
                 ) : (
-                  <div className="mt-6 flex min-h-[240px] items-center justify-center rounded-[1.75rem] bg-[#fbfaf5] text-center text-sm text-[#5c6d71]">
+                  <div className="mt-6 flex min-h-[240px] items-center justify-center rounded-[1.75rem] bg-[var(--panel-2)] text-center text-sm text-[var(--muted)]">
                     先保存一个站点，右侧就会展示活动站点快照，并且可以跳到余额看板或站点洞察。
                   </div>
                 )}
@@ -1556,22 +1584,22 @@ export function DashboardShell({
                         href={SECTION_PATH_MAP[item.section]}
                         className={`rounded-[1.5rem] border p-5 transition ${
                           isCurrent
-                            ? "border-[#0f766e]/20 bg-emerald-50"
-                            : "border-black/5 bg-[#fbfaf5] hover:bg-white"
+                            ? "border-[#0f766e]/20 bg-[linear-gradient(180deg,rgba(40,199,111,0.16),rgba(40,199,111,0.04))]"
+                            : "border-white/8 bg-[var(--panel-2)] hover:bg-[var(--panel)]"
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="flex size-11 items-center justify-center rounded-2xl bg-white text-[#1d2529]">
+                          <div className="flex size-11 items-center justify-center rounded-2xl bg-[var(--panel)] text-[var(--text)]">
                             <Icon className="size-5" />
                           </div>
                           <div>
-                            <p className="text-sm font-semibold text-[#1d2529]">{item.label}</p>
-                            <p className="mt-1 text-xs uppercase tracking-[0.18em] text-[#7a898d]">
+                            <p className="text-sm font-semibold text-[var(--text)]">{item.label}</p>
+                            <p className="mt-1 text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
                               {meta.eyebrow}
                             </p>
                           </div>
                         </div>
-                        <p className="mt-4 text-sm leading-6 text-[#5c6d71]">{meta.description}</p>
+                        <p className="mt-4 text-sm leading-6 text-[var(--muted)]">{meta.description}</p>
                       </Link>
                     );
                   })}
@@ -1642,7 +1670,7 @@ export function DashboardShell({
               />
 
               <section className="surface-card p-6">
-                <div className="flex flex-col gap-4 border-b border-black/5 pb-5 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-col gap-4 border-b border-white/8 pb-5 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <p className="stat-note">Selected Site</p>
                     <h2 className="section-title mt-2">
@@ -1676,30 +1704,30 @@ export function DashboardShell({
                 </div>
 
                 <div className="mt-6 grid gap-4 md:grid-cols-3">
-                  <article className="rounded-[1.5rem] border border-black/5 bg-[#fbfaf5] p-5">
+                  <article className="rounded-[1.5rem] border border-white/8 bg-[var(--panel-2)] p-5">
                     <p className="field-label">当前活动站点</p>
-                    <p className="mt-3 text-lg font-semibold text-[#1d2529]">
+                    <p className="mt-3 text-lg font-semibold text-[var(--text)]">
                       {activeSite?.name || "未选择站点"}
                     </p>
-                    <p className="mt-2 text-sm text-[#5c6d71]">{activeSiteHost}</p>
+                    <p className="mt-2 text-sm text-[var(--muted)]">{activeSiteHost}</p>
                   </article>
 
-                  <article className="rounded-[1.5rem] border border-black/5 bg-[#fbfaf5] p-5">
+                  <article className="rounded-[1.5rem] border border-white/8 bg-[var(--panel-2)] p-5">
                     <p className="field-label">查询区间</p>
-                    <p className="mt-3 text-lg font-semibold text-[#1d2529]">
+                    <p className="mt-3 text-lg font-semibold text-[var(--text)]">
                       {queryRangeLabel}
                     </p>
-                    <p className="mt-2 text-sm text-[#5c6d71]">
+                    <p className="mt-2 text-sm text-[var(--muted)]">
                       所有站点共享同一段统计区间，便于统一比较。
                     </p>
                   </article>
 
-                  <article className="rounded-[1.5rem] border border-black/5 bg-[#fbfaf5] p-5">
+                  <article className="rounded-[1.5rem] border border-white/8 bg-[var(--panel-2)] p-5">
                     <p className="field-label">异常站点</p>
-                    <p className="mt-3 text-lg font-semibold text-[#1d2529]">
+                    <p className="mt-3 text-lg font-semibold text-[var(--text)]">
                       {formatNumber(errorSiteCount)}
                     </p>
-                    <p className="mt-2 text-sm text-[#5c6d71]">
+                    <p className="mt-2 text-sm text-[var(--muted)]">
                       同步失败时优先检查地址、session、Authorization 或 New-Api-User。
                     </p>
                   </article>
@@ -1726,7 +1754,7 @@ export function DashboardShell({
 
                   <div className="flex flex-wrap gap-3">
                     {activeSite ? (
-                      <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">
+                      <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[var(--panel-2)] px-4 py-2 text-sm font-semibold text-[var(--text)]">
                         <Rows3 className="size-4" />
                         {getAuthTypeLabel(activeSite.authType)}
                       </div>
@@ -1769,7 +1797,7 @@ export function DashboardShell({
               </section>
 
               <section className="surface-card p-6">
-                <div className="flex flex-col gap-4 border-b border-black/5 pb-5 sm:flex-row sm:items-end sm:justify-between">
+                <div className="flex flex-col gap-4 border-b border-white/8 pb-5 sm:flex-row sm:items-end sm:justify-between">
                   <div>
                     <p className="stat-note">Quota Overview</p>
                     <h2 className="section-title mt-2">额度概览</h2>
@@ -1868,80 +1896,80 @@ export function DashboardShell({
 
               {activeData ? (
                 <>
-                  <div className="mt-6 rounded-[1.75rem] border border-slate-200 bg-slate-50 p-5">
+                  <div className="mt-6 rounded-[1.75rem] border border-white/10 bg-[var(--panel-2)] p-5">
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <p className="text-lg font-semibold text-[#1d2529]">
+                        <p className="text-lg font-semibold text-[var(--text)]">
                           {activeData.user.displayName || activeData.user.username}
                         </p>
-                        <p className="mt-1 text-sm text-[#5c6d71]">
+                        <p className="mt-1 text-sm text-[var(--muted)]">
                           {activeData.user.email || "未公开邮箱"}
                         </p>
                       </div>
-                      <div className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                      <div className="rounded-full bg-[rgba(40,199,111,0.16)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#7ef0aa]">
                         {activeData.user.roleLabel}
                       </div>
                     </div>
 
-                    <div className="mt-4 flex flex-wrap gap-2 text-xs text-[#5c6d71]">
-                      <span className="rounded-full bg-white px-3 py-1">
+                    <div className="mt-4 flex flex-wrap gap-2 text-xs text-[var(--muted)]">
+                      <span className="rounded-full bg-[var(--panel)] px-3 py-1">
                         状态：{activeData.user.statusLabel}
                       </span>
-                      <span className="rounded-full bg-white px-3 py-1">
+                      <span className="rounded-full bg-[var(--panel)] px-3 py-1">
                         分组：{activeData.user.group || "默认"}
                       </span>
-                      <span className="rounded-full bg-white px-3 py-1">
+                      <span className="rounded-full bg-[var(--panel)] px-3 py-1">
                         鉴权：{activeData.connection.authTypeLabel}
                       </span>
                     </div>
                   </div>
 
                   <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                    <article className="rounded-[1.5rem] border border-black/5 bg-white/80 p-4">
+                    <article className="rounded-[1.5rem] border border-white/8 bg-[rgba(19,26,45,0.82)] p-4">
                       <p className="field-label">余额续航</p>
-                      <p className="mt-3 text-2xl font-semibold tracking-[-0.05em] text-[#1d2529]">
+                      <p className="mt-3 text-2xl font-semibold tracking-[-0.05em] text-[var(--text)]">
                         {formatRunway(activeData.overview.estimatedRunwayDays)}
                       </p>
-                      <p className="mt-2 text-sm text-[#5c6d71]">
+                      <p className="mt-2 text-sm text-[var(--muted)]">
                         以当前区间均值估算剩余额度还能支撑多久。
                       </p>
                     </article>
 
-                    <article className="rounded-[1.5rem] border border-black/5 bg-white/80 p-4">
+                    <article className="rounded-[1.5rem] border border-white/8 bg-[rgba(19,26,45,0.82)] p-4">
                       <p className="field-label">累计使用率</p>
-                      <p className="mt-3 text-2xl font-semibold tracking-[-0.05em] text-[#1d2529]">
+                      <p className="mt-3 text-2xl font-semibold tracking-[-0.05em] text-[var(--text)]">
                         {formatPercent(activeData.overview.usageRate)}
                       </p>
-                      <p className="mt-2 text-sm text-[#5c6d71]">
+                      <p className="mt-2 text-sm text-[var(--muted)]">
                         按 used_quota / (quota + used_quota) 推算的累计消耗占比。
                       </p>
                     </article>
 
-                    <article className="rounded-[1.5rem] border border-black/5 bg-white/80 p-4">
+                    <article className="rounded-[1.5rem] border border-white/8 bg-[rgba(19,26,45,0.82)] p-4">
                       <p className="field-label">峰值时段</p>
-                      <p className="mt-3 text-2xl font-semibold tracking-[-0.05em] text-[#1d2529]">
+                      <p className="mt-3 text-2xl font-semibold tracking-[-0.05em] text-[var(--text)]">
                         {activeData.overview.peakLabel || "暂无"}
                       </p>
-                      <p className="mt-2 text-sm text-[#5c6d71]">
+                      <p className="mt-2 text-sm text-[var(--muted)]">
                         在小时级数据里额度消耗最高的时间桶。
                       </p>
                     </article>
 
-                    <article className="rounded-[1.5rem] border border-black/5 bg-white/80 p-4">
+                    <article className="rounded-[1.5rem] border border-white/8 bg-[rgba(19,26,45,0.82)] p-4">
                       <p className="field-label">平均单次消耗</p>
-                      <p className="mt-3 text-2xl font-semibold tracking-[-0.05em] text-[#1d2529]">
+                      <p className="mt-3 text-2xl font-semibold tracking-[-0.05em] text-[var(--text)]">
                         {formatNumber(activeData.overview.averageQuotaPerRequest)}
                       </p>
-                      <p className="mt-2 text-sm text-[#5c6d71]">
+                      <p className="mt-2 text-sm text-[var(--muted)]">
                         所选区间总额度除以区间请求数。
                       </p>
                     </article>
                   </div>
 
-                  <div className="mt-6 rounded-[1.75rem] border border-slate-200 bg-slate-50 p-5">
+                  <div className="mt-6 rounded-[1.75rem] border border-white/10 bg-[var(--panel-2)] p-5">
                     <div className="flex items-center gap-2">
                       <Clock3 className="size-4 text-[#d96749]" />
-                      <p className="text-sm font-semibold text-[#1d2529]">
+                      <p className="text-sm font-semibold text-[var(--text)]">
                         高峰时段 Top 4
                       </p>
                     </div>
@@ -1950,27 +1978,27 @@ export function DashboardShell({
                         peakMoments.map((point) => (
                           <div
                             key={point.timestamp}
-                            className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 text-sm"
+                            className="flex items-center justify-between rounded-2xl bg-[var(--panel)] px-4 py-3 text-sm"
                           >
                             <div>
-                              <p className="font-semibold text-[#1d2529]">{point.label}</p>
-                              <p className="mt-1 text-[#5c6d71]">
+                              <p className="font-semibold text-[var(--text)]">{point.label}</p>
+                              <p className="mt-1 text-[var(--muted)]">
                                 请求 {formatNumber(point.requests)} 次
                               </p>
                             </div>
-                            <p className="font-semibold text-[#1d2529]">
+                            <p className="font-semibold text-[var(--text)]">
                               {formatNumber(point.quota)}
                             </p>
                           </div>
                         ))
                       ) : (
-                        <p className="text-sm text-[#5c6d71]">暂无峰值数据。</p>
+                        <p className="text-sm text-[var(--muted)]">暂无峰值数据。</p>
                       )}
                     </div>
                   </div>
                 </>
               ) : (
-                <div className="mt-6 flex min-h-[540px] items-center justify-center rounded-[1.75rem] bg-slate-50 text-center text-sm text-slate-600">
+                <div className="mt-6 flex min-h-[540px] items-center justify-center rounded-[1.75rem] bg-[var(--panel-2)] text-center text-sm text-[var(--muted)]">
                   选择一个已同步站点后，这里会展示账户画像、续航估算和峰值时段。
                 </div>
               )}
@@ -1995,54 +2023,54 @@ export function DashboardShell({
 
               {activeData ? (
                 <div className="mt-6 space-y-4">
-                  <article className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-[#1d2529]">
+                  <article className="rounded-[1.5rem] border border-white/10 bg-[var(--panel-2)] p-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
                       <Server className="size-4 text-[#0f766e]" />
                       目标主机
                     </div>
-                    <p className="mt-3 break-all text-sm leading-6 text-[#5c6d71]">
+                    <p className="mt-3 break-all text-sm leading-6 text-[var(--muted)]">
                       {activeData.connection.baseUrl}
                     </p>
                   </article>
 
-                  <article className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-[#1d2529]">
+                  <article className="rounded-[1.5rem] border border-white/10 bg-[var(--panel-2)] p-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
                       <CalendarRange className="size-4 text-[#d96749]" />
                       查询区间
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-[#5c6d71]">
+                    <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
                       {queryRange.startDate} 至 {queryRange.endDate}
                     </p>
                   </article>
 
-                  <article className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-[#1d2529]">
+                  <article className="rounded-[1.5rem] border border-white/10 bg-[var(--panel-2)] p-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
                       <RefreshCcw className="size-4 text-[#c57700]" />
                       最近同步
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-[#5c6d71]">
+                    <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
                       {new Date(activeData.connection.lastSyncedAt).toLocaleString("zh-CN")}
                     </p>
                   </article>
 
-                  <article className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-[#1d2529]">
+                  <article className="rounded-[1.5rem] border border-white/10 bg-[var(--panel-2)] p-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
                       <Clock3 className="size-4 text-[#d96749]" />
                       月卡有效期
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-[#5c6d71]">
+                    <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
                       {activeData.billing.accessUntil
                         ? formatTimestampLabel(activeData.billing.accessUntil)
                         : activeData.billing.message || "暂未获取"}
                     </p>
                   </article>
 
-                  <article className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-[#1d2529]">
+                  <article className="rounded-[1.5rem] border border-white/10 bg-[var(--panel-2)] p-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
                       <Sparkles className="size-4 text-[#0f766e]" />
                       额外提示
                     </div>
-                      <ul className="mt-3 space-y-2 text-sm leading-6 text-[#5c6d71]">
+                      <ul className="mt-3 space-y-2 text-sm leading-6 text-[var(--muted)]">
                         <li>余额表会保留各站点最近一次同步结果，方便横向对比。</li>
                         <li>在余额看板里点击“查看详情”会直接切到这个洞察页面。</li>
                         <li>如果某个站点失败，优先检查地址、session 是否过期，或 New-Api-User 是否正确。</li>
@@ -2050,7 +2078,7 @@ export function DashboardShell({
                   </article>
                 </div>
               ) : (
-                <div className="mt-6 flex min-h-[360px] items-center justify-center rounded-[1.75rem] bg-[#fbfaf5] text-center text-sm text-[#5c6d71]">
+                <div className="mt-6 flex min-h-[360px] items-center justify-center rounded-[1.75rem] bg-[var(--panel-2)] text-center text-sm text-[var(--muted)]">
                   当前还没有活动站点详情，先刷新一次站点数据。
                 </div>
               )}

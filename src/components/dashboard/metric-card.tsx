@@ -1,4 +1,4 @@
-import type { LucideIcon } from "lucide-react";
+﻿import type { LucideIcon } from "lucide-react";
 
 type Tone = "teal" | "amber" | "coral" | "slate";
 
@@ -7,23 +7,28 @@ const toneClassNameMap: Record<
   {
     icon: string;
     halo: string;
+    value: string;
   }
 > = {
   teal: {
-    icon: "bg-emerald-100 text-emerald-700",
-    halo: "from-emerald-500/20 via-emerald-500/5 to-transparent",
+    icon: "bg-[rgba(40,199,111,0.16)] text-[#5be38f]",
+    halo: "from-[rgba(40,199,111,0.18)] via-[rgba(40,199,111,0.06)] to-transparent",
+    value: "text-[#dcfff0]",
   },
   amber: {
-    icon: "bg-amber-100 text-amber-700",
-    halo: "from-amber-500/20 via-amber-500/5 to-transparent",
+    icon: "bg-[rgba(255,176,32,0.16)] text-[#ffcd6a]",
+    halo: "from-[rgba(255,176,32,0.18)] via-[rgba(255,176,32,0.06)] to-transparent",
+    value: "text-[#fff0cc]",
   },
   coral: {
-    icon: "bg-rose-100 text-rose-700",
-    halo: "from-rose-500/20 via-rose-500/5 to-transparent",
+    icon: "bg-[rgba(255,91,91,0.16)] text-[#ff8f8f]",
+    halo: "from-[rgba(255,91,91,0.18)] via-[rgba(255,91,91,0.06)] to-transparent",
+    value: "text-[#ffe2e2]",
   },
   slate: {
-    icon: "bg-slate-100 text-slate-700",
-    halo: "from-slate-500/20 via-slate-500/5 to-transparent",
+    icon: "bg-[rgba(110,168,254,0.14)] text-[#9ec2ff]",
+    halo: "from-[rgba(110,168,254,0.18)] via-[rgba(110,168,254,0.05)] to-transparent",
+    value: "text-[#e3edff]",
   },
 };
 
@@ -52,13 +57,13 @@ export function MetricCard({
       <div className="relative flex items-start justify-between gap-4">
         <div>
           <p className="stat-note">{label}</p>
-          <p className="mt-3 text-2xl font-bold tracking-tight text-slate-900">
+          <p className={`mt-3 text-3xl font-extrabold tracking-[-0.03em] ${toneClassName.value}`}>
             {value}
           </p>
-          <p className="mt-2 text-sm text-slate-600">{detail}</p>
+          <p className="mt-2 text-sm text-[var(--muted)]">{detail}</p>
         </div>
         <div
-          className={`flex size-12 items-center justify-center rounded-xl ${toneClassName.icon}`}
+          className={`flex size-12 items-center justify-center rounded-xl border border-white/8 ${toneClassName.icon}`}
         >
           <Icon className="size-5" />
         </div>
@@ -66,3 +71,4 @@ export function MetricCard({
     </article>
   );
 }
+

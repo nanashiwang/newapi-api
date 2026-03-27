@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import {
@@ -79,7 +79,7 @@ const SORT_OPTIONS: Array<{ value: SortMode; label: string }> = [
   { value: "balance-desc", label: "余额从高到低" },
   { value: "period-desc", label: "区间消耗从高到低" },
   { value: "requests-desc", label: "请求数从高到低" },
-  { value: "synced-desc", label: "最近同步最新" },
+  { value: "synced-desc", label: "最近同步优先" },
 ];
 
 const EXPORT_COLUMNS: ExportColumn[] = [
@@ -99,22 +99,6 @@ const EXPORT_COLUMNS: ExportColumn[] = [
   { key: "lastSyncedAt", label: "最近同步" },
   { key: "message", label: "备注" },
 ];
-
-function getStatusStyles(status: SiteSummaryRow["status"]) {
-  if (status === "ready") {
-    return "bg-[#e6f6f3] text-[#0f5c56]";
-  }
-
-  if (status === "loading") {
-    return "bg-[#fff4db] text-[#9c6500]";
-  }
-
-  if (status === "error") {
-    return "bg-[#ffe9e3] text-[#b34d33]";
-  }
-
-  return "bg-[#eef2f3] text-[#607176]";
-}
 
 function getStatusLabel(status: SiteSummaryRow["status"]) {
   if (status === "ready") {
@@ -310,7 +294,7 @@ function escapeXml(value: string): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
+    .replace(/\"/g, "&quot;")
     .replace(/'/g, "&apos;");
 }
 
@@ -480,10 +464,7 @@ export function SiteBalanceTable({
     });
   }, [rows, keyword, effectiveGroupFilter]);
 
-  const visibleRows = useMemo(
-    () => sortRows(filteredRows, sortMode),
-    [filteredRows, sortMode],
-  );
+  const visibleRows = useMemo(() => sortRows(filteredRows, sortMode), [filteredRows, sortMode]);
 
   const sections = useMemo(() => {
     const grouped = new Map<string, SiteSummaryRow[]>();
@@ -504,20 +485,16 @@ export function SiteBalanceTable({
   }, [visibleRows]);
 
   const totals = useMemo(() => getTableTotals(visibleRows), [visibleRows]);
-  const warningCount = useMemo(
-    () => visibleRows.filter(isLowBalance).length,
-    [visibleRows],
-  );
+  const warningCount = useMemo(() => visibleRows.filter(isLowBalance).length, [visibleRows]);
 
   return (
     <section className="surface-card p-6">
-      <div className="flex flex-col gap-4 border-b border-black/5 pb-5 xl:flex-row xl:items-center xl:justify-between">
+      <div className="flex flex-col gap-4 border-b border-white/8 pb-5 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <p className="stat-note">Multi Site Balance Board</p>
           <h2 className="section-title mt-2">多站点余额表</h2>
           <p className="muted-copy mt-2 max-w-3xl">
-            现在可以按分组查看多个 NewAPI 实例，支持搜索、排序、低余额高亮，以及将当前筛选结果导出为
-            CSV 或 Excel。
+            支持搜索、分组、排序、低余额预警、分组小计和 CSV / Excel 导出。
           </p>
         </div>
 
@@ -542,7 +519,7 @@ export function SiteBalanceTable({
           </button>
           <button
             type="button"
-            className="secondary-button"
+            className="primary-button"
             onClick={onRefreshAll}
             disabled={isRefreshingAll || rows.length === 0}
           >
@@ -557,16 +534,16 @@ export function SiteBalanceTable({
       </div>
 
       {rows.length === 0 ? (
-        <div className="mt-6 flex min-h-[260px] items-center justify-center rounded-[1.5rem] bg-[#fbfaf5] text-center text-sm text-[#5c6d71]">
-          先在左侧保存至少一个 NewAPI 站点，这里就会生成跨站点余额表。
+        <div className="empty-state mt-6 min-h-[260px]">
+          先保存至少一个 NewAPI 站点，这里就会生成跨站点余额表。
         </div>
       ) : (
         <>
-          <div className="mt-6 grid gap-3 xl:grid-cols-[minmax(0,1.4fr)_220px_220px]">
+          <div className="mt-6 grid gap-3 xl:grid-cols-[minmax(0,1.45fr)_220px_220px]">
             <label className="space-y-2">
               <span className="field-label">搜索站点</span>
               <div className="relative">
-                <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-[#7a898d]" />
+                <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-[var(--muted)]" />
                 <input
                   className="field-input pl-11"
                   placeholder="按站点名、Host、URL 或分组筛选"
@@ -595,7 +572,7 @@ export function SiteBalanceTable({
             <label className="space-y-2">
               <span className="field-label">排序方式</span>
               <div className="relative">
-                <ArrowDownUp className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-[#7a898d]" />
+                <ArrowDownUp className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-[var(--muted)]" />
                 <select
                   className="field-input pl-11"
                   value={sortMode}
@@ -612,35 +589,30 @@ export function SiteBalanceTable({
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
-            <span className="inline-flex rounded-full bg-[#e6f6f3] px-3 py-1 text-xs font-semibold text-[#0f5c56]">
+            <span className="soft-badge border-[rgba(110,168,254,0.18)] bg-[rgba(110,168,254,0.12)] text-[#dbe8ff]">
               显示 {visibleRows.length} / {rows.length} 个站点
             </span>
-            <span className="inline-flex rounded-full bg-[#f3eee4] px-3 py-1 text-xs font-semibold text-[#6a777b]">
-              {effectiveGroupFilter === "all" ? "全部分组" : effectiveGroupFilter}
-            </span>
-            <span className="inline-flex rounded-full bg-[#fff7ed] px-3 py-1 text-xs font-semibold text-[#9c6500]">
+            <span className="soft-badge">{effectiveGroupFilter === "all" ? "全部分组" : effectiveGroupFilter}</span>
+            <span className="soft-badge border-[rgba(255,176,32,0.18)] bg-[rgba(255,176,32,0.12)] text-[#ffd479]">
               {warningCount} 个低余额预警
             </span>
           </div>
 
           {visibleRows.length === 0 ? (
-            <div className="mt-6 flex min-h-[220px] items-center justify-center rounded-[1.5rem] border border-dashed border-black/10 bg-[#fbfaf5] text-center text-sm text-[#5c6d71]">
-              没有符合当前搜索或分组筛选条件的站点。
-            </div>
+            <div className="empty-state mt-6 min-h-[220px]">没有符合当前筛选条件的站点。</div>
           ) : (
-            <div className="mt-6 overflow-hidden rounded-[1.75rem] border border-black/5 bg-[#fbfaf5]">
+            <div className="mt-6 overflow-hidden rounded-[18px] border border-white/8 bg-[var(--panel-2)]">
               <div className="overflow-x-auto">
                 <table className="min-w-full border-collapse text-sm">
                   <thead>
-                    <tr className="border-b border-black/5 text-left text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[#718186]">
-                      <th className="px-4 py-4">站点</th>
-                      <th className="px-4 py-4">余额</th>
-                      <th className="px-4 py-4">历史已用</th>
+                    <tr className="border-b border-white/8 bg-[rgba(255,255,255,0.02)] text-left text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">
+                      <th className="px-4 py-4">站点名称</th>
+                      <th className="px-4 py-4">Host</th>
+                      <th className="px-4 py-4">分组</th>
+                      <th className="px-4 py-4">当前余额</th>
+                      <th className="px-4 py-4">阈值</th>
                       <th className="px-4 py-4">区间消耗</th>
-                      <th className="px-4 py-4">请求</th>
-                      <th className="px-4 py-4">活跃模型</th>
-                      <th className="px-4 py-4">鉴权</th>
-                      <th className="px-4 py-4">状态</th>
+                      <th className="px-4 py-4">请求数</th>
                       <th className="px-4 py-4">最近同步</th>
                       <th className="px-4 py-4 text-right">操作</th>
                     </tr>
@@ -648,27 +620,25 @@ export function SiteBalanceTable({
 
                   {sections.map((section) => (
                     <tbody key={section.label}>
-                      <tr className="border-y border-black/5 bg-[#f3eee4]/70">
-                        <td className="px-4 py-3" colSpan={10}>
+                      <tr className="group-row">
+                        <td className="px-4 py-3" colSpan={9}>
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#1d2529]">
+                              <span className="soft-badge border-[rgba(110,168,254,0.18)] bg-[rgba(110,168,254,0.12)] text-[#dbe8ff]">
                                 {section.label}
                               </span>
-                              <span className="text-xs font-semibold text-[#6a777b]">
+                              <span className="text-xs font-semibold text-[var(--muted)]">
                                 {section.rows.length} 个站点
                               </span>
                             </div>
                             <div className="flex flex-wrap gap-2 text-xs font-semibold">
                               {section.warningCount > 0 ? (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-[#fff2ee] px-3 py-1 text-[#b34d33]">
+                                <span className="soft-badge border-[rgba(255,91,91,0.18)] bg-[rgba(255,91,91,0.12)] text-[#ff9d9d]">
                                   <TriangleAlert className="size-3" />
                                   {section.warningCount} 个预警
                                 </span>
                               ) : null}
-                              <span className="rounded-full bg-white px-3 py-1 text-[#6a777b]">
-                                余额小计 {formatMetric(section.totals.currentBalance)}
-                              </span>
+                              <span className="soft-badge">小计余额 {formatMetric(section.totals.currentBalance)}</span>
                             </div>
                           </div>
                         </td>
@@ -682,91 +652,53 @@ export function SiteBalanceTable({
                         return (
                           <tr
                             key={row.id}
-                            className={`border-b border-black/5 align-top transition ${
+                            className={`border-b border-white/8 align-top transition ${
                               lowBalance
-                                ? isActive
-                                  ? "bg-[#fff3ee]"
-                                  : "bg-[#fff9f6] hover:bg-[#fff4ef]"
+                                ? "bg-[rgba(255,91,91,0.08)]"
                                 : isActive
-                                  ? "bg-white"
-                                  : "bg-transparent hover:bg-white/70"
+                                  ? "bg-[rgba(110,168,254,0.08)]"
+                                  : "bg-transparent hover:bg-[rgba(255,255,255,0.03)]"
                             }`}
                           >
                             <td className="px-4 py-4">
                               <div>
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => onSelect(row.id)}
-                                    className="text-left text-sm font-semibold text-[#1d2529]"
-                                  >
-                                    {row.name}
-                                  </button>
-                                  <span className="rounded-full bg-[#f3eee4] px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-[#6a777b]">
-                                    {getGroupLabel(row.group)}
-                                  </span>
-                                  {lowBalance ? (
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-[#fff0ec] px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-[#b34d33]">
-                                      <TriangleAlert className="size-3" />
-                                      低余额
-                                    </span>
-                                  ) : null}
-                                </div>
-                                <p className="mt-2 max-w-[280px] break-all text-xs text-[#5c6d71]">
-                                  {row.host}
-                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() => onSelect(row.id)}
+                                  className="text-left text-sm font-semibold text-[var(--text)]"
+                                >
+                                  {row.name}
+                                </button>
                                 {row.message ? (
-                                  <p className="mt-2 max-w-[320px] text-xs leading-5 text-[#b34d33]">
+                                  <p className="mt-2 max-w-[320px] text-xs leading-5 text-[#ff9d9d]">
                                     {row.message}
                                   </p>
                                 ) : null}
                               </div>
                             </td>
-                            <td
-                              className={`px-4 py-4 font-semibold ${
-                                lowBalance ? "text-[#b34d33]" : "text-[#1d2529]"
-                              }`}
-                            >
-                              <div>
-                                <p>{formatMetric(row.currentBalance)}</p>
-                                {row.warningQuota !== null ? (
-                                  <p className="mt-1 text-xs font-medium text-[#8b5b4d]">
-                                    阈值 {formatNumber(row.warningQuota)}
-                                  </p>
-                                ) : null}
-                              </div>
+                            <td className="px-4 py-4 text-[var(--muted)]">{row.host}</td>
+                            <td className="px-4 py-4">
+                              <span className="soft-badge text-[#dce6ff]">{getGroupLabel(row.group)}</span>
                             </td>
-                            <td className="px-4 py-4 text-[#4f5d62]">
-                              {formatMetric(row.historicalUsage)}
+                            <td className={`px-4 py-4 font-semibold ${lowBalance ? "text-[#ff9d9d]" : "text-[#dce6ff]"}`}>
+                              {formatMetric(row.currentBalance)}
                             </td>
-                            <td className="px-4 py-4 text-[#4f5d62]">
-                              {formatMetric(row.periodQuota)}
+                            <td className="px-4 py-4 text-[var(--muted)]">
+                              {row.warningQuota === null ? "--" : formatNumber(row.warningQuota)}
                             </td>
-                            <td className="px-4 py-4 text-[#4f5d62]">
+                            <td className="px-4 py-4 text-[var(--muted)]">{formatMetric(row.periodQuota)}</td>
+                            <td className="px-4 py-4 text-[var(--muted)]">
                               {formatMetric(row.totalRequests, "compact")}
                             </td>
-                            <td className="px-4 py-4 text-[#4f5d62]">
-                              {formatMetric(row.activeModels)}
-                            </td>
-                            <td className="px-4 py-4 text-[#4f5d62]">{row.authTypeLabel}</td>
-                            <td className="px-4 py-4">
-                              <span
-                                className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusStyles(row.status)}`}
-                              >
-                                {getStatusLabel(row.status)}
-                              </span>
-                            </td>
-                            <td className="px-4 py-4 text-[#4f5d62]">
-                              {formatLastSyncedAt(row.lastSyncedAt)}
-                            </td>
+                            <td className="px-4 py-4 text-[var(--muted)]">{formatLastSyncedAt(row.lastSyncedAt)}</td>
                             <td className="px-4 py-4">
                               <div className="flex justify-end gap-2">
                                 <button
                                   type="button"
                                   className={`rounded-full px-3 py-2 text-xs font-semibold transition ${
                                     isActive
-                                      ? "bg-[#1d2529] text-white"
-                                      : "bg-white text-[#1d2529] hover:bg-[#f3eee4]"
+                                      ? "bg-[linear-gradient(135deg,#6ea8fe,#4f7df0)] text-white"
+                                      : "border border-white/8 bg-[var(--panel)] text-[var(--text)] hover:bg-[var(--panel-3)]"
                                   }`}
                                   onClick={() => onSelect(row.id)}
                                 >
@@ -774,7 +706,7 @@ export function SiteBalanceTable({
                                 </button>
                                 <button
                                   type="button"
-                                  className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-2 text-xs font-semibold text-[#4f5d62] transition hover:bg-[#f3eee4]"
+                                  className="inline-flex items-center gap-1 rounded-full border border-white/8 bg-[var(--panel)] px-3 py-2 text-xs font-semibold text-[var(--text)] transition hover:bg-[var(--panel-3)]"
                                   onClick={() => onEditSite(row.id)}
                                 >
                                   <PencilLine className="size-3" />
@@ -782,7 +714,7 @@ export function SiteBalanceTable({
                                 </button>
                                 <button
                                   type="button"
-                                  className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-[#4f5d62] transition hover:bg-[#f3eee4] disabled:cursor-not-allowed disabled:opacity-60"
+                                  className="rounded-full border border-white/8 bg-[var(--panel)] px-3 py-2 text-xs font-semibold text-[var(--text)] transition hover:bg-[var(--panel-3)] disabled:cursor-not-allowed disabled:opacity-60"
                                   onClick={() => onRefreshSite(row.id)}
                                   disabled={isRefreshing}
                                 >
@@ -797,7 +729,7 @@ export function SiteBalanceTable({
                                 </button>
                                 <button
                                   type="button"
-                                  className="inline-flex items-center gap-1 rounded-full bg-[#fff2ee] px-3 py-2 text-xs font-semibold text-[#b34d33] transition hover:bg-[#ffe6de]"
+                                  className="inline-flex items-center gap-1 rounded-full border border-[rgba(255,91,91,0.18)] bg-[rgba(255,91,91,0.12)] px-3 py-2 text-xs font-semibold text-[#ff9d9d] transition hover:bg-[rgba(255,91,91,0.18)]"
                                   onClick={() => onDeleteSite(row.id)}
                                 >
                                   <Trash2 className="size-3" />
@@ -808,46 +740,18 @@ export function SiteBalanceTable({
                           </tr>
                         );
                       })}
-
-                      <tr className="border-b border-black/5 bg-white/65 text-xs font-semibold text-[#6a777b]">
-                        <td className="px-4 py-3">{section.label} 小计</td>
-                        <td className="px-4 py-3">{formatMetric(section.totals.currentBalance)}</td>
-                        <td className="px-4 py-3">{formatMetric(section.totals.historicalUsage)}</td>
-                        <td className="px-4 py-3">{formatMetric(section.totals.periodQuota)}</td>
-                        <td className="px-4 py-3">
-                          {formatMetric(section.totals.totalRequests, "compact")}
-                        </td>
-                        <td className="px-4 py-3">{formatMetric(section.totals.activeModels)}</td>
-                        <td className="px-4 py-3">--</td>
-                        <td className="px-4 py-3">{section.rows.length} 个站点</td>
-                        <td className="px-4 py-3">--</td>
-                        <td className="px-4 py-3 text-right">--</td>
-                      </tr>
                     </tbody>
                   ))}
 
                   <tfoot>
-                    <tr className="bg-[#1d2529] text-white">
+                    <tr className="bg-[rgba(110,168,254,0.12)] text-[#dbe8ff]">
                       <td className="px-4 py-4 text-sm font-semibold">总计（当前筛选）</td>
-                      <td className="px-4 py-4 text-sm font-semibold">
-                        {formatMetric(totals.currentBalance)}
-                      </td>
-                      <td className="px-4 py-4 text-sm font-semibold">
-                        {formatMetric(totals.historicalUsage)}
-                      </td>
-                      <td className="px-4 py-4 text-sm font-semibold">
-                        {formatMetric(totals.periodQuota)}
-                      </td>
-                      <td className="px-4 py-4 text-sm font-semibold">
-                        {formatMetric(totals.totalRequests, "compact")}
-                      </td>
-                      <td className="px-4 py-4 text-sm font-semibold">
-                        {formatMetric(totals.activeModels)}
-                      </td>
                       <td className="px-4 py-4 text-sm font-semibold">--</td>
-                      <td className="px-4 py-4 text-sm font-semibold">
-                        {visibleRows.length} 个站点
-                      </td>
+                      <td className="px-4 py-4 text-sm font-semibold">{visibleRows.length} 个站点</td>
+                      <td className="px-4 py-4 text-sm font-semibold">{formatMetric(totals.currentBalance)}</td>
+                      <td className="px-4 py-4 text-sm font-semibold">--</td>
+                      <td className="px-4 py-4 text-sm font-semibold">{formatMetric(totals.periodQuota)}</td>
+                      <td className="px-4 py-4 text-sm font-semibold">{formatMetric(totals.totalRequests, "compact")}</td>
                       <td className="px-4 py-4 text-sm font-semibold">--</td>
                       <td className="px-4 py-4 text-right text-sm font-semibold">
                         {warningCount > 0 ? `${warningCount} 个预警` : "正常"}
@@ -863,3 +767,4 @@ export function SiteBalanceTable({
     </section>
   );
 }
+
