@@ -328,15 +328,6 @@ select {
     color: #ffd6d6;
   }
 
-  .proto-dashboard .intro {
-    display: grid;
-    grid-template-columns: 1.2fr 0.8fr;
-    gap: 18px;
-    margin-bottom: 26px;
-  }
-
-  .proto-dashboard .hero,
-  .proto-dashboard .notes,
   .proto-dashboard .screen {
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
     border: 1px solid rgba(255, 255, 255, 0.07);
@@ -344,33 +335,19 @@ select {
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
   }
 
-  .proto-dashboard .hero,
-  .proto-dashboard .notes,
   .proto-dashboard .main,
   .proto-dashboard .sidebar {
     color: var(--text);
   }
 
-  .proto-dashboard .hero {
-    padding: 24px;
-  }
-
-  .proto-dashboard .hero h2 {
-    margin: 0 0 8px;
-    font-size: 28px;
-  }
-
-  .proto-dashboard .hero p,
-  .proto-dashboard .notes ul,
+  .proto-dashboard .screen-header .meta,
   .proto-dashboard .tiny,
   .proto-dashboard .signal p,
-  .proto-dashboard .screen-header .meta,
   .proto-dashboard .delta,
   .proto-dashboard .site-meta {
     color: var(--muted);
   }
 
-  .proto-dashboard .tag-list,
   .proto-dashboard .toolbar,
   .proto-dashboard .filters,
   .proto-dashboard .button-row,
@@ -378,25 +355,6 @@ select {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
-  }
-
-  .proto-dashboard .tag {
-    background: var(--tag);
-    color: #d8e4ff;
-    padding: 8px 12px;
-    border-radius: 999px;
-    font-size: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-  }
-
-  .proto-dashboard .notes {
-    padding: 20px;
-  }
-
-  .proto-dashboard .notes ul {
-    margin: 0;
-    padding-left: 18px;
-    line-height: 1.8;
   }
 
   .proto-dashboard .screen {
@@ -675,7 +633,6 @@ select {
   }
 
   @media (max-width: 1100px) {
-    .proto-dashboard .intro,
     .proto-dashboard .row.two,
     .proto-dashboard .layout,
     .proto-dashboard .row.cards-4,

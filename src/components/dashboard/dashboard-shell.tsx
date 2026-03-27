@@ -921,27 +921,6 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
       <div className="container">
         {section === "dashboard" ? (
           <>
-            <div className="intro">
-              <div className="hero">
-                <h2>产品原型拆分</h2>
-                <p>首页现在只负责总览，站点管理、余额表和活动站点详情都拆到了独立页面。后续就沿着你给的这套 UI 继续演进。</p>
-                <div className="tag-list">
-                  <span className="tag">多实例额度集中查看</span>
-                  <span className="tag">支持三种鉴权</span>
-                  <span className="tag">24h / 7d / 30d 区间切换</span>
-                  <span className="tag">分组管理 + 搜索 + 排序</span>
-                </div>
-              </div>
-              <div className="notes">
-                <h3>当前页面说明</h3>
-                <ul>
-                  <li>先看总余额、区间消耗、低余额站点和总请求数。</li>
-                  <li>左侧快速切站点，右侧继续下钻活动站点趋势与信号。</li>
-                  <li>需要改配置时直接切到“站点管理”，不再放在一个超长页面里。</li>
-                </ul>
-              </div>
-            </div>
-
             <section className="screen">
               <div className="screen-header">
                 <div>
