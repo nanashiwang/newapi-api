@@ -15,7 +15,7 @@ const monoFont = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: "NewAPI 额度统计平台",
-  description: "可配置 NewAPI 地址与鉴权方式的现代化个人额度统计仪表盘。",
+  description: "可配置 NewAPI 地址与鉴权方式的多站点额度统计仪表盘。",
 };
 
 export default function RootLayout({

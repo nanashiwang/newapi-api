@@ -71,7 +71,7 @@ export function formatRunway(days: number | null): string {
   }
 
   if (!Number.isFinite(days)) {
-    return "∞";
+    return "--";
   }
 
   if (days < 1) {
