@@ -25,10 +25,8 @@ import type {
   DashboardData,
   DashboardRange,
   DashboardRequest,
-  ModelBreakdownItem,
   SiteConfig,
   SiteSummaryRow,
-  TrendPoint,
 } from "@/lib/dashboard-types";
 import {
   formatCompactNumber,
@@ -406,23 +404,6 @@ function getStatusLabel(row: SiteSummaryRow): string {
   return "待同步";
 }
 
-function sumNullable(rows: SiteSummaryRow[], selector: (row: SiteSummaryRow) => number | null): number | null {
-  let total = 0;
-  let hasValue = false;
-
-  for (const row of rows) {
-    const value = selector(row);
-    if (value === null) {
-      continue;
-    }
-
-    total += value;
-    hasValue = true;
-  }
-
-  return hasValue ? total : null;
-}
-
 function getRangeSpanDays(range: DashboardRange): number {
   const span = toEndTimestamp(range.endDate) - toStartTimestamp(range.startDate) + 1;
   return Math.max(1, Math.round(span / 86400));
@@ -433,65 +414,6 @@ function getRangeLabel(range: DashboardRange): string {
   return preset ? preset.label : `${range.startDate} 至 ${range.endDate}`;
 }
 
-function buildLinePoints(data: TrendPoint[], width = 800, height = 260): string {
-  if (data.length === 0) {
-    return "";
-  }
-
-  const maxValue = Math.max(...data.map((point) => Math.max(point.quota, 0)), 1);
-  const topPadding = 24;
-  const bottomPadding = 24;
-  const usableHeight = height - topPadding - bottomPadding;
-
-  return data
-    .map((point, index) => {
-      const x = data.length === 1 ? width / 2 : (index / (data.length - 1)) * width;
-      const y = height - bottomPadding - (Math.max(point.quota, 0) / maxValue) * usableHeight;
-      return `${x},${y}`;
-    })
-    .join(" ");
-}
-
-function TrendSvg({ data, accent = "blue" }: { data: TrendPoint[]; accent?: "blue" | "green" }) {
-  if (data.length === 0) {
-    return <div className="empty-panel small">当前区间还没有可视化趋势数据。</div>;
-  }
-
-  const linePoints = buildLinePoints(data);
-  const fill = accent === "green" ? "rgba(40,199,111,0.18)" : "rgba(110,168,254,0.18)";
-  const stroke = accent === "green" ? "#28c76f" : "#6ea8fe";
-
-  return (
-    <div className="chart">
-      <svg viewBox="0 0 800 260" preserveAspectRatio="none" aria-hidden="true">
-        <polyline fill={fill} stroke="none" points={`${linePoints} 800,260 0,260`} />
-        <polyline fill="none" stroke={stroke} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" points={linePoints} />
-      </svg>
-    </div>
-  );
-}
-
-function ModelBars({ models }: { models: ModelBreakdownItem[] }) {
-  if (models.length === 0) {
-    return <div className="empty-panel small">当前区间还没有模型消耗记录。</div>;
-  }
-
-  return (
-    <div className="bars">
-      {models.slice(0, 5).map((model) => (
-        <div className="bar-item" key={`${model.name}-${model.lastSeen}`}>
-          <div className="bar-meta">
-            <span>{model.name}</span>
-            <span>{`${model.share.toFixed(model.share >= 10 ? 0 : 1)}%`}</span>
-          </div>
-          <div className="bar-track">
-            <div className="bar-fill" style={{ width: `${Math.max(6, Math.min(100, model.share))}%` }} />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
 export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -529,9 +451,6 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
   }, [orderedRows, keyword, groupFilter]);
   const activeTrend = activeData ? (granularity === "hourly" ? activeData.trend.hourly : activeData.trend.daily) : [];
   const filteredModels = useMemo(() => (activeData?.models ?? []).filter((model) => model.name.toLowerCase().includes(modelQuery.trim().toLowerCase())), [activeData, modelQuery]);
-  const totalBalance = sumNullable(orderedRows, (row) => row.currentBalance);
-  const totalPeriodQuota = sumNullable(orderedRows, (row) => row.periodQuota);
-  const totalRequests = sumNullable(orderedRows, (row) => row.totalRequests);
   const readySiteCount = orderedRows.filter((row) => row.status === "ready").length;
   const errorSiteCount = orderedRows.filter((row) => row.status === "error").length;
   const lowBalanceCount = orderedRows.filter(isLowBalance).length;
@@ -923,13 +842,6 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
         {section === "dashboard" ? (
           <>
             <section className="screen">
-              <div className="screen-header">
-                <div>
-                  <div className="title">Dashboard 总览</div>
-                  <div className="meta">目标：把总余额、低余额站点、总消耗和活动站点详情入口聚合在一屏。</div>
-                </div>
-                <div className="badge">当前区间：{rangeLabel}</div>
-              </div>
               <div className="layout">
                 <aside className="sidebar">
                   <div className="nav-group">
@@ -1014,23 +926,6 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
                     </div>
                   </div>
 
-                  <div className="row cards-4">
-                    <div className="card"><h4>总余额(USD)</h4><div className="metric">{formatQuotaUsd(totalBalance)}</div><div className="delta">全部站点当前可用额度合计</div></div>
-                    <div className="card"><h4>{rangeLabel}总消耗</h4><div className="metric">{formatNumber(totalPeriodQuota ?? 0)}</div><div className="delta good">基于当前筛选区间统计</div></div>
-                    <div className="card"><h4>低余额站点</h4><div className="metric bad">{formatNumber(lowBalanceCount)}</div><div className="delta">低于各自阈值的站点数量</div></div>
-                    <div className="card"><h4>总请求数</h4><div className="metric">{formatCompactNumber(totalRequests ?? 0)}</div><div className="delta">当前已接入站点的累计请求量</div></div>
-                  </div>
-                  <div className="row two spaced">
-                    <div className="card">
-                      <h4>额度趋势（活动站点）</h4>
-                      <TrendSvg data={activeData ? activeTrend : []} accent="blue" />
-                      <div className="tiny chart-footnote">当前站点：{activeSite?.name || "未选择站点"}</div>
-                    </div>
-                    <div className="card">
-                      <h4>模型消耗排行</h4>
-                      <ModelBars models={activeData?.models ?? []} />
-                    </div>
-                  </div>
                 </div>
               </div>
             </section>
