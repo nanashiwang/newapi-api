@@ -549,8 +549,30 @@ select {
   }
 
   .proto-dashboard .table-link {
+    padding: 0;
+    border: none;
+    background: transparent;
     color: #dce6ff;
     font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: rgba(110, 168, 254, 0.38);
+    text-underline-offset: 3px;
+    transition:
+      color 0.18s ease,
+      text-decoration-color 0.18s ease,
+      transform 0.18s ease;
+  }
+
+  .proto-dashboard .table-link:hover {
+    color: #9dc3ff;
+    text-decoration-color: rgba(110, 168, 254, 0.88);
+  }
+
+  .proto-dashboard .table-link:focus-visible {
+    outline: none;
+    color: #9dc3ff;
+    text-decoration-color: rgba(110, 168, 254, 0.88);
   }
 
   .proto-dashboard .low-balance {

@@ -39,6 +39,7 @@ import {
   formatTimestampLabel,
   shiftDate,
 } from "@/lib/formatters";
+import { formatQuotaUsd } from "@/lib/quota";
 
 export type DashboardSection = "dashboard" | "sites" | "board" | "insights";
 
@@ -980,7 +981,7 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
                             <tr>
                               <th>站点</th>
                               <th>分组</th>
-                              <th>当前余额</th>
+                              <th>当前余额(USD)</th>
                               <th>区间消耗</th>
                               <th>请求数</th>
                               <th>状态</th>
@@ -989,9 +990,9 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
                           <tbody>
                             {filteredRows.slice(0, 5).map((row) => (
                               <tr key={row.id} className={isLowBalance(row) ? "low-balance" : ""}>
-                                <td><button type="button" className="table-link" onClick={() => jumpToSection("insights", row.id)}>{row.name}</button></td>
+                                <td><button type="button" className="table-link" onClick={() => jumpToSection("insights", row.id)} title={`查看 ${row.name} 的活动站点详情`}>{row.name}</button></td>
                                 <td>{getGroupLabel(row.group)}</td>
-                                <td>{formatNumber(row.currentBalance ?? 0)}</td>
+                                <td>{formatQuotaUsd(row.currentBalance)}</td>
                                 <td>{formatNumber(row.periodQuota ?? 0)}</td>
                                 <td>{formatCompactNumber(row.totalRequests ?? 0)}</td>
                                 <td><span className="badge status success">{getStatusLabel(row)}</span></td>
@@ -1014,7 +1015,7 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
                   </div>
 
                   <div className="row cards-4">
-                    <div className="card"><h4>总余额</h4><div className="metric">{formatNumber(totalBalance ?? 0)}</div><div className="delta">全部站点当前可用额度合计</div></div>
+                    <div className="card"><h4>总余额(USD)</h4><div className="metric">{formatQuotaUsd(totalBalance)}</div><div className="delta">全部站点当前可用额度合计</div></div>
                     <div className="card"><h4>{rangeLabel}总消耗</h4><div className="metric">{formatNumber(totalPeriodQuota ?? 0)}</div><div className="delta good">基于当前筛选区间统计</div></div>
                     <div className="card"><h4>低余额站点</h4><div className="metric bad">{formatNumber(lowBalanceCount)}</div><div className="delta">低于各自阈值的站点数量</div></div>
                     <div className="card"><h4>总请求数</h4><div className="metric">{formatCompactNumber(totalRequests ?? 0)}</div><div className="delta">当前已接入站点的累计请求量</div></div>
@@ -1182,7 +1183,7 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
               {activeSite && activeData ? (
                 <>
                   <div className="row cards-3">
-                    <div className="card"><h4>当前余额</h4><div className="metric">{formatNumber(activeData.overview.currentBalance)}</div><div className="delta">来源：/api/user/self → quota</div></div>
+                    <div className="card"><h4>当前余额(USD)</h4><div className="metric">{formatQuotaUsd(activeData.overview.currentBalance)}</div><div className="delta">来源：/api/user/self → quota</div></div>
                     <div className="card"><h4>历史已用</h4><div className="metric">{formatNumber(activeData.overview.historicalUsage)}</div><div className="delta">来源：/api/user/self → used_quota</div></div>
                     <div className="card"><h4>累计请求数</h4><div className="metric">{formatCompactNumber(activeData.overview.totalRequests)}</div><div className="delta">来源：/api/user/self → request_count</div></div>
                   </div>
