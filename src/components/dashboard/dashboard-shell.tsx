@@ -971,24 +971,6 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
                     ))}
                   </div>
 
-                  <div className="row cards-4">
-                    <div className="card"><h4>总余额</h4><div className="metric">{formatNumber(totalBalance ?? 0)}</div><div className="delta">全部站点当前可用额度合计</div></div>
-                    <div className="card"><h4>{rangeLabel}总消耗</h4><div className="metric">{formatNumber(totalPeriodQuota ?? 0)}</div><div className="delta good">基于当前筛选区间统计</div></div>
-                    <div className="card"><h4>低余额站点</h4><div className="metric bad">{formatNumber(lowBalanceCount)}</div><div className="delta">低于各自阈值的站点数量</div></div>
-                    <div className="card"><h4>总请求数</h4><div className="metric">{formatCompactNumber(totalRequests ?? 0)}</div><div className="delta">当前已接入站点的累计请求量</div></div>
-                  </div>
-                  <div className="row two spaced">
-                    <div className="card">
-                      <h4>额度趋势（活动站点）</h4>
-                      <TrendSvg data={activeData ? activeTrend : []} accent="blue" />
-                      <div className="tiny chart-footnote">当前站点：{activeSite?.name || "未选择站点"}</div>
-                    </div>
-                    <div className="card">
-                      <h4>模型消耗排行</h4>
-                      <ModelBars models={activeData?.models ?? []} />
-                    </div>
-                  </div>
-
                   <div className="row two spaced">
                     <div className="card">
                       <h4>多站点快速状态</h4>
@@ -1028,6 +1010,24 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
                         <div className="signal"><strong className={errorSiteCount > 0 ? "bad" : "good"}>{errorSiteCount > 0 ? "同步异常" : "请求量稳定"}</strong><p>{errorSiteCount > 0 ? `${errorSiteCount} 个站点最近一次同步失败，请检查鉴权方式、地址或 Cookie 是否失效。` : "当前请求量波动较平稳，没有出现明显异常冲高。"}</p></div>
                         <div className="signal"><strong className={topModel && topModel.share >= 45 ? "bad" : ""}>{topModel && topModel.share >= 45 ? "模型消耗集中" : "模型分布概览"}</strong><p>{topModel ? `${topModel.name} 当前占比 ${topModel.share.toFixed(topModel.share >= 10 ? 0 : 1)}%，适合继续下钻到活动站点详情里查看调用来源。` : "先同步一个站点，这里会根据模型分布给出使用信号。"}</p></div>
                       </div>
+                    </div>
+                  </div>
+
+                  <div className="row cards-4">
+                    <div className="card"><h4>总余额</h4><div className="metric">{formatNumber(totalBalance ?? 0)}</div><div className="delta">全部站点当前可用额度合计</div></div>
+                    <div className="card"><h4>{rangeLabel}总消耗</h4><div className="metric">{formatNumber(totalPeriodQuota ?? 0)}</div><div className="delta good">基于当前筛选区间统计</div></div>
+                    <div className="card"><h4>低余额站点</h4><div className="metric bad">{formatNumber(lowBalanceCount)}</div><div className="delta">低于各自阈值的站点数量</div></div>
+                    <div className="card"><h4>总请求数</h4><div className="metric">{formatCompactNumber(totalRequests ?? 0)}</div><div className="delta">当前已接入站点的累计请求量</div></div>
+                  </div>
+                  <div className="row two spaced">
+                    <div className="card">
+                      <h4>额度趋势（活动站点）</h4>
+                      <TrendSvg data={activeData ? activeTrend : []} accent="blue" />
+                      <div className="tiny chart-footnote">当前站点：{activeSite?.name || "未选择站点"}</div>
+                    </div>
+                    <div className="card">
+                      <h4>模型消耗排行</h4>
+                      <ModelBars models={activeData?.models ?? []} />
                     </div>
                   </div>
                 </div>

@@ -20,7 +20,7 @@ import {
   formatTimestampLabel,
 } from "@/lib/formatters";
 
-const QUOTA_PER_USD = 50000;
+const QUOTA_PER_USD = 500000;
 
 interface SiteBalanceTableProps {
   rows: SiteSummaryRow[];
