@@ -20,6 +20,8 @@ import {
   formatTimestampLabel,
 } from "@/lib/formatters";
 
+const QUOTA_PER_USD = 50000;
+
 interface SiteBalanceTableProps {
   rows: SiteSummaryRow[];
   activeSiteId: string | null;
@@ -88,7 +90,7 @@ const EXPORT_COLUMNS: ExportColumn[] = [
   { key: "host", label: "Host" },
   { key: "baseUrl", label: "Base URL" },
   { key: "authType", label: "鉴权" },
-  { key: "currentBalance", label: "当前余额" },
+  { key: "currentBalance", label: "当前余额(USD)" },
   { key: "warningQuota", label: "低余额阈值" },
   { key: "warningState", label: "预警状态" },
   { key: "historicalUsage", label: "历史已用" },
@@ -276,6 +278,28 @@ function formatMetric(value: number | null, mode: "default" | "compact" = "defau
   return mode === "compact" ? formatCompactNumber(value) : formatNumber(value);
 }
 
+function quotaToUsd(value: number | null): number | null {
+  if (value === null) {
+    return null;
+  }
+
+  return value / QUOTA_PER_USD;
+}
+
+function formatQuotaUsd(value: number | null): string {
+  const usdValue = quotaToUsd(value);
+  if (usdValue === null) {
+    return "--";
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(usdValue);
+}
+
 function sanitizeSpreadsheetText(value: string): string {
   return /^[=+\-@]/.test(value) ? `'${value}` : value;
 }
@@ -305,7 +329,7 @@ function buildExportRows(rows: SiteSummaryRow[]): ExportRecord[] {
     host: row.host,
     baseUrl: row.baseUrl,
     authType: row.authTypeLabel,
-    currentBalance: row.currentBalance ?? "",
+    currentBalance: quotaToUsd(row.currentBalance) ?? "",
     warningQuota: row.warningQuota ?? "",
     warningState: isLowBalance(row) ? "预警" : "正常",
     historicalUsage: row.historicalUsage ?? "",
@@ -328,7 +352,7 @@ function buildTotalRecord(rows: SiteSummaryRow[]): ExportRecord {
     host: "",
     baseUrl: "",
     authType: "",
-    currentBalance: totals.currentBalance ?? "",
+    currentBalance: quotaToUsd(totals.currentBalance) ?? "",
     warningQuota: "",
     warningState: warningCount > 0 ? `${warningCount} 个预警` : "正常",
     historicalUsage: totals.historicalUsage ?? "",
@@ -609,7 +633,7 @@ export function SiteBalanceTable({
                       <th className="px-4 py-4">站点名称</th>
                       <th className="px-4 py-4">Host</th>
                       <th className="px-4 py-4">分组</th>
-                      <th className="px-4 py-4">当前余额</th>
+                      <th className="px-4 py-4">当前余额(USD)</th>
                       <th className="px-4 py-4">阈值</th>
                       <th className="px-4 py-4">区间消耗</th>
                       <th className="px-4 py-4">请求数</th>
@@ -638,7 +662,7 @@ export function SiteBalanceTable({
                                   {section.warningCount} 个预警
                                 </span>
                               ) : null}
-                              <span className="soft-badge">小计余额 {formatMetric(section.totals.currentBalance)}</span>
+                              <span className="soft-badge">小计余额 {formatQuotaUsd(section.totals.currentBalance)}</span>
                             </div>
                           </div>
                         </td>
@@ -681,7 +705,7 @@ export function SiteBalanceTable({
                               <span className="soft-badge text-[#dce6ff]">{getGroupLabel(row.group)}</span>
                             </td>
                             <td className={`px-4 py-4 font-semibold ${lowBalance ? "text-[#ff9d9d]" : "text-[#dce6ff]"}`}>
-                              {formatMetric(row.currentBalance)}
+                              {formatQuotaUsd(row.currentBalance)}
                             </td>
                             <td className="px-4 py-4 text-[var(--muted)]">
                               {row.warningQuota === null ? "--" : formatNumber(row.warningQuota)}
@@ -748,7 +772,7 @@ export function SiteBalanceTable({
                       <td className="px-4 py-4 text-sm font-semibold">总计（当前筛选）</td>
                       <td className="px-4 py-4 text-sm font-semibold">--</td>
                       <td className="px-4 py-4 text-sm font-semibold">{visibleRows.length} 个站点</td>
-                      <td className="px-4 py-4 text-sm font-semibold">{formatMetric(totals.currentBalance)}</td>
+                      <td className="px-4 py-4 text-sm font-semibold">{formatQuotaUsd(totals.currentBalance)}</td>
                       <td className="px-4 py-4 text-sm font-semibold">--</td>
                       <td className="px-4 py-4 text-sm font-semibold">{formatMetric(totals.periodQuota)}</td>
                       <td className="px-4 py-4 text-sm font-semibold">{formatMetric(totals.totalRequests, "compact")}</td>
