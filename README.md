@@ -1,70 +1,57 @@
 # NewAPI 额度统计平台
 
-一个基于 `Next.js 16 + React 19 + Tailwind CSS v4` 的多站点额度统计平台，用来集中查看多个 NewAPI 实例的个人额度、历史消耗和区间趋势。
+基于 `Next.js 16 + React 19 + Tailwind CSS v4` 的多站点额度统计面板，用于集中查看多个 NewAPI 实例的余额、区间消耗、请求量和活动站点详情。
 
-核心数据来源参考 NewAPI 管理端统计接口文档：
+## 当前特性
 
-- `https://www.newapi.ai/zh/docs/api/management/statistics/data-self-get`
+- 分页面结构：
+  - `/dashboard` 总览
+  - `/sites` 站点管理
+  - `/board` 多站点余额表
+  - `/insights` 活动站点详情
+- 支持多站点配置
+- 支持三种鉴权方式：
+  - `Authorization`
+  - `session`
+  - `New-Api-User`
+- 支持 `24 小时 / 7 天 / 30 天` 查询区间
+- 支持导入 / 导出站点配置
+- 支持低余额阈值高亮
+- 支持单用户服务端持久化
 
-项目通过服务端代理请求 NewAPI，避免浏览器直接跨域访问；站点配置保存在当前浏览器 `localStorage`，不依赖数据库。
+## 持久化说明
 
-## 功能概览
+当前版本不再依赖浏览器 `localStorage` 作为主存储。
 
-- 支持保存多个 NewAPI 实例
-- 支持在同一页面切换活动站点
-- 支持 `Authorization`、`session`、`New-Api-User` 三种鉴权方式
-- 支持全局查询区间：`24 小时 / 7 天 / 30 天`
-- 支持多站点余额表统一查看
-- 支持站点分组管理
-- 支持低余额阈值配置与高亮预警
-- 支持搜索、分组筛选、排序
-- 支持导出当前筛选结果为 `CSV` 和 `Excel`
-- 支持查看当前活动站点的趋势图、模型消耗分布、账户信号
+站点配置、当前区间和活动站点会保存在服务端文件：
 
-## 当前页面结构
+```text
+data/dashboard-settings.json
+```
 
-### 1. 站点管理
+这意味着：
 
-- 保存多个 NewAPI 实例
-- 维护站点名称、分组、地址、鉴权方式、鉴权值
-- 配置低余额阈值
-- 本地保存并自动回填
+- 只要访问的是同一套部署实例，换电脑后仍然可以看到同一批站点
+- 删除或修改站点会影响这套部署的所有访问设备
+- Docker 部署时必须挂载 `data` 目录，否则重建容器后配置会丢失
 
-### 2. 多站点余额表
+兼容说明：
 
-- 以表格形式展示多个站点的余额
-- 按分组分段展示
-- 支持总计行与分组小计
-- 支持按余额、区间消耗、请求数、最近同步时间排序
-- 支持按站点名、Host、URL、分组搜索
-- 余额低于阈值时自动高亮
-
-### 3. 活动站点详情
-
-- 概览卡片
-- 额度趋势图
-- 模型消耗排行
-- 账户信号面板
+- 如果旧版本数据还在浏览器 `localStorage` 中，新版本首次打开时会自动尝试迁移到服务端
 
 ## 数据来源
 
-当前实现主要聚合以下两个接口：
+服务端通过代理聚合以下接口：
 
 - `GET /api/user/self`
 - `GET /api/data/self`
 
 其中：
 
-- `quota` 用于展示当前余额
-- `used_quota` 用于展示历史已用
-- `request_count` 用于展示累计请求数
-- `/api/data/self` 用于生成区间额度趋势和模型消耗拆解
-
-## 使用限制
-
-- 个人额度统计接口单次最多查询 `30 天`
-- 鉴权信息仅保存在当前浏览器本地
-- 当前版本不接入数据库，不做多用户共享配置
+- `quota` 用于当前余额
+- `used_quota` 用于历史已用
+- `request_count` 用于累计请求数
+- `/api/data/self` 用于区间趋势和模型消耗分析
 
 ## 本地启动
 
@@ -93,108 +80,58 @@ npm run start
 
 ```bash
 docker build -t newapi-api:latest .
-docker run --rm -p 3000:3000 newapi-api:latest
+docker run --rm -p 3000:3000 -v ./data:/app/data newapi-api:latest
 ```
 
-### 一条命令启动
+### Docker Compose
 
-仓库根目录已提供 `docker-compose.yml`，默认直接使用 GHCR 镜像：
+项目默认将服务端持久化目录挂载到宿主机：
+
+```yaml
+volumes:
+  - ./data:/app/data
+```
+
+启动：
 
 ```bash
 docker compose up -d
 ```
 
-当前默认镜像地址：
-
-```text
-ghcr.io/nanashiwang/newapi-api:latest
-```
-
-### 服务器环境一键初始化
-
-如果服务器还没有安装 Docker / Compose，可直接运行：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/nanashiwang/newapi-api/main/scripts/server-init.sh -o server-init.sh
-sudo bash server-init.sh
-```
-
-### 一条命令安装并启动
-
-如果你希望在全新服务器上直接完成 Docker 安装、拉镜像和启动，可运行：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/nanashiwang/newapi-api/main/scripts/deploy.sh -o deploy.sh
-bash deploy.sh
-```
-
-### 推送到 GitHub 后自动发布镜像
-
-项目已包含 GHCR 发布工作流：
-
-- 工作流文件：`.github/workflows/publish-ghcr.yml`
-- 默认镜像地址：`ghcr.io/nanashiwang/newapi-api:latest`
-- 当代码推送到 `main` / `master` 或推送 `v*` 标签时，会自动构建并推送镜像
-
-如果你要直接拉取镜像，可使用：
-
-```bash
-docker pull ghcr.io/nanashiwang/newapi-api:latest
-docker run --rm -p 3000:3000 ghcr.io/nanashiwang/newapi-api:latest
-```
-
-## 部署文档
-
-已新增服务器部署说明：
-
-- `docs/deploy.md`
-- `scripts/deploy.sh`
-- `scripts/server-init.sh`
-
-内容包括：
-
-- 一条命令安装 + 拉镜像 + 启动
-- Docker / Compose 一键安装
-- 服务器前置条件检查
-- 使用 `docker compose pull && docker compose up -d` 启动
-- 更新镜像后的滚动拉取方式
-- GHCR 拉取失败时的处理方式
-- 私有/公开镜像两种处理路径
-
-## 项目结构
+## 关键目录
 
 ```text
 src/
   app/
     api/dashboard/route.ts
+    api/settings/route.ts
     globals.css
     layout.tsx
     page.tsx
   components/dashboard/
     dashboard-shell.tsx
-    metric-card.tsx
     model-breakdown.tsx
     site-balance-table.tsx
     trend-chart.tsx
   lib/
+    dashboard-settings.ts
     dashboard-types.ts
     formatters.ts
     newapi-client.ts
-scripts/
-  deploy.sh
-  server-init.sh
+    quota.ts
+    settings-store.ts
+data/
+  .gitkeep
 ```
 
 ## 设计取向
 
-- `KISS`：以前端单页 + 服务端代理完成核心需求
-- `YAGNI`：只做当前所需的多站点额度统计与导出
-- `DRY`：统一通过 `/api/dashboard` 代理和归一化数据
-- `SOLID`：类型、代理、格式化、可视化组件按职责拆分
+- `KISS`：优先保证单用户、多站点巡检场景可直接落地
+- `YAGNI`：当前先做单用户服务端持久化，不引入登录和数据库
+- `DRY`：统一通过共享设置规范和 `/api/settings` 持久化配置
+- `SOLID`：将配置规范、文件存储、接口路由和页面逻辑拆分
 
 ## 已验证
-
-当前版本已通过：
 
 ```bash
 npm run lint

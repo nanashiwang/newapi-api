@@ -7,3 +7,6 @@ services:
       - "3000:3000"
     environment:
       NODE_ENV: production
+      APP_DATA_DIR: /app/data
+    volumes:
+      - ./data:/app/data

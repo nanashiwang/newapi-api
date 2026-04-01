@@ -1,6 +1,10 @@
 ﻿@import "tailwindcss";
 
 :root {
+  --font-display:
+    "Segoe UI", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+  --font-plex-mono:
+    "SFMono-Regular", "Cascadia Mono", "IBM Plex Mono", Consolas, monospace;
   --bg: #0b1020;
   --bg-soft: #0f162b;
   --panel: #131a2d;

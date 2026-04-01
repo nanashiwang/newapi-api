@@ -25,17 +25,25 @@ import type {
   DashboardData,
   DashboardRange,
   DashboardRequest,
+  DashboardSettings,
   SiteConfig,
   SiteSummaryRow,
 } from "@/lib/dashboard-types";
 import {
+  createDefaultRange,
+  createRangeByDays,
+  deriveSiteName,
+  normalizeDashboardSettings,
+  normalizeOptionalText,
+  normalizeSiteConfig,
+  parseHost,
+} from "@/lib/dashboard-settings";
+import {
   formatCompactNumber,
-  formatDateInput,
   formatNumber,
   formatPercent,
   formatRunway,
   formatTimestampLabel,
-  shiftDate,
 } from "@/lib/formatters";
 import { formatQuotaUsd } from "@/lib/quota";
 
@@ -58,6 +66,10 @@ type SiteDraft = {
 
 type DashboardApiResponse =
   | { success: true; data: DashboardData }
+  | { success: false; message: string };
+
+type DashboardSettingsApiResponse =
+  | { success: true; data: DashboardSettings }
   | { success: false; message: string };
 
 type Notice = {
@@ -114,19 +126,6 @@ function getAuthTypeLabel(authType: AuthType): string {
   return "Authorization";
 }
 
-function createRangeByDays(days: number): DashboardRange {
-  const today = new Date();
-
-  return {
-    startDate: formatDateInput(shiftDate(today, -(days - 1))),
-    endDate: formatDateInput(today),
-  };
-}
-
-function createDefaultRange(): DashboardRange {
-  return createRangeByDays(30);
-}
-
 function createEmptySiteDraft(): SiteDraft {
   return {
     id: null,
@@ -153,25 +152,6 @@ function siteToDraft(site: SiteConfig): SiteDraft {
   };
 }
 
-function parseHost(baseUrl: string): string {
-  const raw = baseUrl.trim();
-  if (!raw) {
-    return "--";
-  }
-
-  const normalized = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
-
-  try {
-    return new URL(normalized).host;
-  } catch {
-    return raw;
-  }
-}
-
-function deriveSiteName(name: string, baseUrl: string): string {
-  return name.trim() || parseHost(baseUrl);
-}
-
 function generateSiteId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
@@ -192,33 +172,6 @@ function getAuthPlaceholder(authType: AuthType): string {
   return "例如 Bearer sk-xxx 或平台要求的 Authorization 值";
 }
 
-function normalizeOptionalText(rawValue: unknown): string | null {
-  if (typeof rawValue !== "string") {
-    return null;
-  }
-
-  const trimmed = rawValue.trim();
-  return trimmed.length ? trimmed : null;
-}
-
-function normalizeWarningQuotaValue(rawValue: unknown): number | null {
-  if (typeof rawValue === "number") {
-    return Number.isFinite(rawValue) && rawValue >= 0 ? rawValue : null;
-  }
-
-  if (typeof rawValue === "string") {
-    const trimmed = rawValue.trim();
-    if (!trimmed) {
-      return null;
-    }
-
-    const parsed = Number(trimmed);
-    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
-  }
-
-  return null;
-}
-
 function parseWarningQuotaInput(rawValue: string): { value: number | null; error: string | null } {
   const trimmed = rawValue.trim();
   if (!trimmed) {
@@ -231,28 +184,6 @@ function parseWarningQuotaInput(rawValue: string): { value: number | null; error
   }
 
   return { value: parsed, error: null };
-}
-
-function normalizeSiteConfig(site: Partial<SiteConfig>): SiteConfig | null {
-  if (!site.id || !site.baseUrl?.trim() || !site.authValue?.trim()) {
-    return null;
-  }
-
-  const authType: AuthType =
-    site.authType === "session" || site.authType === "new-api-user"
-      ? site.authType
-      : "authorization";
-
-  return {
-    id: site.id,
-    name: deriveSiteName(site.name ?? "", site.baseUrl),
-    group: typeof site.group === "string" ? site.group.trim() : "",
-    baseUrl: site.baseUrl.trim(),
-    authType,
-    authValue: site.authValue.trim(),
-    userId: normalizeOptionalText(site.userId),
-    warningQuota: normalizeWarningQuotaValue(site.warningQuota),
-  };
 }
 
 function buildSiteFromDraft(siteDraft: SiteDraft): { site: SiteConfig | null; error: string | null } {
@@ -337,6 +268,111 @@ async function requestDashboardPayload(requestBody: DashboardRequest): Promise<D
   return result.data;
 }
 
+async function requestSettingsPayload(): Promise<DashboardSettings> {
+  const response = await fetch("/api/settings", {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  const result = (await response.json()) as DashboardSettingsApiResponse;
+
+  if (!response.ok || !result.success) {
+    throw new Error("message" in result ? result.message : "读取服务端配置失败。");
+  }
+
+  return result.data;
+}
+
+async function saveSettingsPayload(settings: DashboardSettings): Promise<DashboardSettings> {
+  const response = await fetch("/api/settings", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
+
+  const result = (await response.json()) as DashboardSettingsApiResponse;
+
+  if (!response.ok || !result.success) {
+    throw new Error("message" in result ? result.message : "保存服务端配置失败。");
+  }
+
+  return result.data;
+}
+
+function buildDashboardSettingsPayload(
+  sites: SiteConfig[],
+  range: DashboardRange,
+  activeSiteId: string | null,
+): DashboardSettings {
+  return normalizeDashboardSettings({
+    sites,
+    range,
+    activeSiteId,
+  });
+}
+
+function loadLegacyDashboardSettingsFromBrowser(): DashboardSettings {
+  const savedSitesRaw = window.localStorage.getItem(SITES_STORAGE_KEY);
+  const savedRangeRaw = window.localStorage.getItem(RANGE_STORAGE_KEY);
+  const savedActiveSiteId = window.localStorage.getItem(ACTIVE_SITE_STORAGE_KEY);
+  const legacySingleConfig = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+
+  let nextSites: SiteConfig[] = [];
+  let nextRange: Partial<DashboardRange> | undefined;
+
+  try {
+    nextRange = savedRangeRaw
+      ? (JSON.parse(savedRangeRaw) as Partial<DashboardRange>)
+      : undefined;
+  } catch {
+    nextRange = undefined;
+  }
+
+  try {
+    const parsedSites = savedSitesRaw ? (JSON.parse(savedSitesRaw) as Partial<SiteConfig>[]) : [];
+    if (Array.isArray(parsedSites)) {
+      nextSites = parsedSites.flatMap((site) => {
+        const normalizedSite = normalizeSiteConfig(site);
+        return normalizedSite ? [normalizedSite] : [];
+      });
+    }
+  } catch {
+    nextSites = [];
+  }
+
+  if (!nextSites.length && legacySingleConfig) {
+    try {
+      const parsedLegacy = JSON.parse(legacySingleConfig) as Partial<{
+        baseUrl: string;
+        authType: AuthType;
+        authValue: string;
+      }>;
+      if (parsedLegacy.baseUrl?.trim() && parsedLegacy.authValue?.trim()) {
+        nextSites = [
+          {
+            id: generateSiteId(),
+            name: deriveSiteName("", parsedLegacy.baseUrl),
+            group: "",
+            baseUrl: parsedLegacy.baseUrl,
+            authType: parsedLegacy.authType ?? "authorization",
+            authValue: parsedLegacy.authValue,
+            userId: null,
+            warningQuota: null,
+          },
+        ];
+      }
+    } catch {
+      nextSites = [];
+    }
+  }
+
+  return normalizeDashboardSettings({
+    sites: nextSites,
+    range: nextRange,
+    activeSiteId: savedActiveSiteId,
+  });
+}
+
 function createSummary(site: SiteConfig, overrides: Partial<SiteSummaryRow> = {}): SiteSummaryRow {
   return {
     status: "idle",
@@ -418,6 +454,7 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const hasBootstrappedRef = useRef(false);
+  const persistedSettingsRef = useRef<string | null>(null);
   const [sites, setSites] = useState<SiteConfig[]>([]);
   const [siteDraft, setSiteDraft] = useState<SiteDraft>(createEmptySiteDraft());
   const [queryRange, setQueryRange] = useState<DashboardRange>(createDefaultRange());
@@ -561,84 +598,169 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
     },
     [sites, queryRange, activeSiteId],
   );
+
+  const applyLoadedSettings = useCallback(
+    async (settings: DashboardSettings) => {
+      const normalizedSettings = buildDashboardSettingsPayload(
+        settings.sites,
+        settings.range,
+        settings.activeSiteId,
+      );
+      const nextActiveSite =
+        normalizedSettings.activeSiteId
+          ? normalizedSettings.sites.find(
+              (site) => site.id === normalizedSettings.activeSiteId,
+            ) ?? normalizedSettings.sites[0]
+          : null;
+
+      setSites(normalizedSettings.sites);
+      setQueryRange(normalizedSettings.range);
+      setActiveSiteId(normalizedSettings.activeSiteId);
+      setSiteDraft(
+        nextActiveSite ? siteToDraft(nextActiveSite) : createEmptySiteDraft(),
+      );
+      setDashboardMap({});
+      setSiteSummaryMap({});
+      setIsHydrated(true);
+
+      if (normalizedSettings.sites.length > 0) {
+        await refreshAllSites(
+          normalizedSettings.sites,
+          normalizedSettings.range,
+          normalizedSettings.activeSiteId,
+        );
+      }
+    },
+    [refreshAllSites],
+  );
   useEffect(() => {
     if (hasBootstrappedRef.current) {
       return;
     }
 
     hasBootstrappedRef.current = true;
+    let isCancelled = false;
 
-    const savedSitesRaw = window.localStorage.getItem(SITES_STORAGE_KEY);
-    const savedRangeRaw = window.localStorage.getItem(RANGE_STORAGE_KEY);
-    const savedActiveSiteId = window.localStorage.getItem(ACTIVE_SITE_STORAGE_KEY);
-    const legacySingleConfig = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+    async function bootstrapSettings() {
+      const browserSettings = loadLegacyDashboardSettingsFromBrowser();
 
-    let nextSites: SiteConfig[] = [];
-    let nextRange = createDefaultRange();
+      try {
+        const serverSettings = await requestSettingsPayload();
+        if (isCancelled) {
+          return;
+        }
 
-    try {
-      const parsedRange = savedRangeRaw ? (JSON.parse(savedRangeRaw) as Partial<DashboardRange>) : null;
-      nextRange = { ...nextRange, ...parsedRange };
-    } catch {}
+        if (serverSettings.sites.length > 0 || browserSettings.sites.length === 0) {
+          persistedSettingsRef.current = JSON.stringify(serverSettings);
+          await applyLoadedSettings(serverSettings);
+          return;
+        }
 
-    try {
-      const parsedSites = savedSitesRaw ? (JSON.parse(savedSitesRaw) as Partial<SiteConfig>[]) : [];
-      if (Array.isArray(parsedSites)) {
-        nextSites = parsedSites.flatMap((site) => {
-          const normalizedSite = normalizeSiteConfig(site);
-          return normalizedSite ? [normalizedSite] : [];
+        try {
+          const migratedSettings = await saveSettingsPayload(browserSettings);
+          if (isCancelled) {
+            return;
+          }
+
+          persistedSettingsRef.current = JSON.stringify(migratedSettings);
+          await applyLoadedSettings(migratedSettings);
+          setNotice({
+            tone: "success",
+            text: `已将当前浏览器中的 ${browserSettings.sites.length} 个站点迁移到服务端持久化存储。`,
+          });
+        } catch (migrationError) {
+          persistedSettingsRef.current = null;
+          await applyLoadedSettings(browserSettings);
+
+          if (isCancelled) {
+            return;
+          }
+
+          setNotice({
+            tone: "error",
+            text:
+              migrationError instanceof Error
+                ? `服务端配置迁移失败：${migrationError.message}`
+                : "服务端配置迁移失败，当前先使用浏览器里的历史配置。",
+          });
+        }
+      } catch (error) {
+        const fallbackSettings =
+          browserSettings.sites.length > 0
+            ? browserSettings
+            : buildDashboardSettingsPayload([], createDefaultRange(), null);
+
+        persistedSettingsRef.current = null;
+        await applyLoadedSettings(fallbackSettings);
+
+        if (isCancelled) {
+          return;
+        }
+
+        setNotice({
+          tone: "error",
+          text:
+            browserSettings.sites.length > 0
+              ? "读取服务端配置失败，已临时使用当前浏览器里的历史配置。"
+              : error instanceof Error
+                ? error.message
+                : "读取服务端配置失败。",
         });
       }
-    } catch {
-      nextSites = [];
     }
 
-    if (!nextSites.length && legacySingleConfig) {
-      try {
-        const parsedLegacy = JSON.parse(legacySingleConfig) as Partial<{ baseUrl: string; authType: AuthType; authValue: string }>;
-        if (parsedLegacy.baseUrl?.trim() && parsedLegacy.authValue?.trim()) {
-          nextSites = [{
-            id: generateSiteId(),
-            name: deriveSiteName("", parsedLegacy.baseUrl),
-            group: "",
-            baseUrl: parsedLegacy.baseUrl,
-            authType: parsedLegacy.authType ?? "authorization",
-            authValue: parsedLegacy.authValue,
-            userId: null,
-            warningQuota: null,
-          }];
-        }
-      } catch {
-        nextSites = [];
-      }
-    }
+    void bootstrapSettings();
 
-    const nextActiveId = savedActiveSiteId && nextSites.some((site) => site.id === savedActiveSiteId) ? savedActiveSiteId : nextSites[0]?.id ?? null;
-
-    setSites(nextSites);
-    setQueryRange(nextRange);
-    setActiveSiteId(nextActiveId);
-    setSiteDraft(nextActiveId ? siteToDraft(nextSites.find((site) => site.id === nextActiveId) ?? nextSites[0]) : createEmptySiteDraft());
-    setIsHydrated(true);
-
-    if (nextSites.length) {
-      void refreshAllSites(nextSites, nextRange, nextActiveId);
-    }
-  }, [refreshAllSites]);
+    return () => {
+      isCancelled = true;
+    };
+  }, [applyLoadedSettings]);
 
   useEffect(() => {
     if (!isHydrated) {
       return;
     }
 
-    window.localStorage.setItem(SITES_STORAGE_KEY, JSON.stringify(sites));
-    window.localStorage.setItem(RANGE_STORAGE_KEY, JSON.stringify(queryRange));
-
-    if (activeSiteId) {
-      window.localStorage.setItem(ACTIVE_SITE_STORAGE_KEY, activeSiteId);
-    } else {
-      window.localStorage.removeItem(ACTIVE_SITE_STORAGE_KEY);
+    const nextSettings = buildDashboardSettingsPayload(
+      sites,
+      queryRange,
+      activeSiteId,
+    );
+    const serializedSettings = JSON.stringify(nextSettings);
+    if (persistedSettingsRef.current === serializedSettings) {
+      return;
     }
+
+    let isCancelled = false;
+
+    async function persistSettings() {
+      try {
+        const savedSettings = await saveSettingsPayload(nextSettings);
+        if (isCancelled) {
+          return;
+        }
+
+        persistedSettingsRef.current = JSON.stringify(savedSettings);
+      } catch (error) {
+        if (isCancelled) {
+          return;
+        }
+
+        setNotice({
+          tone: "error",
+          text:
+            error instanceof Error
+              ? `服务端配置保存失败：${error.message}`
+              : "服务端配置保存失败。",
+        });
+      }
+    }
+
+    void persistSettings();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [sites, queryRange, activeSiteId, isHydrated]);
 
   useEffect(() => {
@@ -720,11 +842,26 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
       return;
     }
 
-    if (!window.confirm(`确认删除站点“${site.name}”吗？这只会删除当前浏览器里的本地配置。`)) {
+    if (!window.confirm(`确认删除站点“${site.name}”吗？这会从当前服务端持久化配置中删除，并影响这套部署上的所有访问设备。`)) {
       return;
     }
 
-    setSites((current) => current.filter((item) => item.id !== siteId));
+    const nextSites = sites.filter((item) => item.id !== siteId);
+    const nextActiveSite = activeSiteId === siteId ? nextSites[0] ?? null : nextSites.find((item) => item.id === activeSiteId) ?? null;
+
+    setSites(nextSites);
+    setDashboardMap((current) => {
+      const next = { ...current };
+      delete next[siteId];
+      return next;
+    });
+    setSiteSummaryMap((current) => {
+      const next = { ...current };
+      delete next[siteId];
+      return next;
+    });
+    setActiveSiteId(nextActiveSite?.id ?? null);
+    setSiteDraft(nextActiveSite ? siteToDraft(nextActiveSite) : createEmptySiteDraft());
     setNotice({ tone: "success", text: `站点“${site.name}”已删除。` });
   }
   function handleDuplicateSite(siteId: string) {
@@ -937,9 +1074,9 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
             <div className="screen-header">
               <div>
                 <div className="title">站点管理</div>
-                <div className="meta">目标：低成本维护多个实例配置，并保留本地导入、导出和独立阈值管理能力。</div>
+                <div className="meta">目标：低成本维护多个实例配置，并保留服务端持久化、导入导出和独立阈值管理能力。</div>
               </div>
-              <div className="badge">localStorage 本地保存</div>
+              <div className="badge">服务端持久化</div>
             </div>
             <div className="layout">
               <aside className="sidebar">
@@ -986,7 +1123,7 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
                     <h4>配置说明</h4>
                     <div className="signal-list">
                       <div className="signal"><strong>鉴权方式</strong><p>统一支持 Authorization、session、New-Api-User 三种模式，兼容不同的 NewAPI 部署方式。</p></div>
-                      <div className="signal"><strong>本地存储</strong><p>所有站点配置只保存在当前浏览器 localStorage，不依赖数据库，适合个人额度巡检场景。</p></div>
+                      <div className="signal"><strong>服务端持久化</strong><p>所有站点配置保存在当前部署实例的服务端文件中；只要访问同一套部署，换电脑也能看到同一批站点。</p></div>
                       <div className="signal"><strong>预警阈值</strong><p>每个站点都可以设置独立的低余额阈值，之后会在余额表和状态卡片里统一高亮提醒。</p></div>
                     </div>
                   </div>

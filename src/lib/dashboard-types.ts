@@ -16,6 +16,12 @@ export interface DashboardRange {
   endDate: string;
 }
 
+export interface DashboardSettings {
+  sites: SiteConfig[];
+  range: DashboardRange;
+  activeSiteId: string | null;
+}
+
 export interface DashboardRequest {
   baseUrl: string;
   authType: AuthType;
