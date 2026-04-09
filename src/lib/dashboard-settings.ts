@@ -1,5 +1,6 @@
 import type {
   AuthType,
+  CrsSiteConfig,
   DashboardRange,
   DashboardSettings,
   SiteConfig,
@@ -10,8 +11,10 @@ export const DEFAULT_DASHBOARD_RANGE_DAYS = 30;
 
 type DashboardSettingsInput = {
   sites?: Partial<SiteConfig>[];
+  crsSites?: Partial<CrsSiteConfig>[];
   range?: Partial<DashboardRange>;
   activeSiteId?: string | null;
+  activeCrsSiteId?: string | null;
 };
 
 export function parseHost(baseUrl: string): string {
@@ -112,12 +115,36 @@ export function normalizeDashboardRange(
   };
 }
 
+export function normalizeCrsSiteConfig(
+  site: Partial<CrsSiteConfig>,
+): CrsSiteConfig | null {
+  if (!site.id || !site.baseUrl?.trim() || !site.username?.trim() || !site.password?.trim()) {
+    return null;
+  }
+
+  return {
+    id: site.id,
+    name: deriveSiteName(site.name ?? "", site.baseUrl),
+    baseUrl: site.baseUrl.trim(),
+    username: site.username.trim(),
+    password: site.password.trim(),
+    group: typeof site.group === "string" ? site.group.trim() : "",
+  };
+}
+
 export function normalizeDashboardSettings(
   rawSettings: DashboardSettingsInput | DashboardSettings | null | undefined,
 ): DashboardSettings {
   const sites = Array.isArray(rawSettings?.sites)
     ? rawSettings.sites.flatMap((site) => {
         const normalizedSite = normalizeSiteConfig(site);
+        return normalizedSite ? [normalizedSite] : [];
+      })
+    : [];
+
+  const crsSites = Array.isArray(rawSettings?.crsSites)
+    ? rawSettings.crsSites.flatMap((site) => {
+        const normalizedSite = normalizeCrsSiteConfig(site);
         return normalizedSite ? [normalizedSite] : [];
       })
     : [];
@@ -132,9 +159,20 @@ export function normalizeDashboardSettings(
       ? requestedActiveSiteId
       : sites[0]?.id ?? null;
 
+  const requestedActiveCrsSiteId =
+    typeof rawSettings?.activeCrsSiteId === "string" && rawSettings.activeCrsSiteId.trim()
+      ? rawSettings.activeCrsSiteId
+      : null;
+  const activeCrsSiteId =
+    requestedActiveCrsSiteId && crsSites.some((site) => site.id === requestedActiveCrsSiteId)
+      ? requestedActiveCrsSiteId
+      : crsSites[0]?.id ?? null;
+
   return {
     sites,
+    crsSites,
     range,
     activeSiteId,
+    activeCrsSiteId,
   };
 }

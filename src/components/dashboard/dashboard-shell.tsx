@@ -8,6 +8,7 @@ import {
   Copy,
   LayoutDashboard,
   LoaderCircle,
+  MonitorSmartphone,
   PencilLine,
   RefreshCcw,
   Rows3,
@@ -20,8 +21,12 @@ import {
 import { ModelBreakdown } from "@/components/dashboard/model-breakdown";
 import { SiteBalanceTable } from "@/components/dashboard/site-balance-table";
 import { TrendChart } from "@/components/dashboard/trend-chart";
+import { CrsPlatformTable } from "@/components/crs/crs-platform-table";
 import type {
   AuthType,
+  CrsDashboardData,
+  CrsSiteConfig,
+  CrsSiteSummaryRow,
   DashboardData,
   DashboardRange,
   DashboardRequest,
@@ -47,7 +52,7 @@ import {
 } from "@/lib/formatters";
 import { formatQuotaUsd } from "@/lib/quota";
 
-export type DashboardSection = "dashboard" | "sites" | "board" | "insights";
+export type DashboardSection = "dashboard" | "sites" | "board" | "insights" | "crs";
 
 type DashboardShellProps = {
   section?: DashboardSection;
@@ -68,6 +73,10 @@ type DashboardApiResponse =
   | { success: true; data: DashboardData }
   | { success: false; message: string };
 
+type CrsDashboardApiResponse =
+  | { success: true; data: CrsDashboardData }
+  | { success: false; message: string };
+
 type DashboardSettingsApiResponse =
   | { success: true; data: DashboardSettings }
   | { success: false; message: string };
@@ -75,6 +84,15 @@ type DashboardSettingsApiResponse =
 type Notice = {
   tone: "success" | "error";
   text: string;
+};
+
+type CrsSiteDraft = {
+  id: string | null;
+  name: string;
+  group: string;
+  baseUrl: string;
+  username: string;
+  password: string;
 };
 
 const LEGACY_STORAGE_KEY = "newapi-quota-dashboard:connection";
@@ -100,6 +118,7 @@ const SECTION_PATH_MAP: Record<DashboardSection, string> = {
   sites: "/sites",
   board: "/board",
   insights: "/insights",
+  crs: "/crs",
 };
 
 const SECTION_NAV_ITEMS: Array<{
@@ -112,6 +131,7 @@ const SECTION_NAV_ITEMS: Array<{
   { section: "sites", label: "站点管理", shortLabel: "站点", icon: ShieldCheck },
   { section: "board", label: "多站点余额表", shortLabel: "余额表", icon: Rows3 },
   { section: "insights", label: "活动站点详情", shortLabel: "详情", icon: Activity },
+  { section: "crs", label: "CRS 管理", shortLabel: "CRS", icon: MonitorSmartphone },
 ];
 
 function getAuthTypeLabel(authType: AuthType): string {
@@ -184,6 +204,111 @@ function parseWarningQuotaInput(rawValue: string): { value: number | null; error
   }
 
   return { value: parsed, error: null };
+}
+
+function createEmptyCrsSiteDraft(): CrsSiteDraft {
+  return {
+    id: null,
+    name: "",
+    group: "",
+    baseUrl: "",
+    username: "",
+    password: "",
+  };
+}
+
+function crsSiteToDraft(site: CrsSiteConfig): CrsSiteDraft {
+  return {
+    id: site.id,
+    name: site.name,
+    group: site.group,
+    baseUrl: site.baseUrl,
+    username: site.username,
+    password: site.password,
+  };
+}
+
+function buildCrsSiteFromDraft(draft: CrsSiteDraft): { site: CrsSiteConfig | null; error: string | null } {
+  if (!draft.baseUrl.trim()) {
+    return { site: null, error: "请填写 CRS 站点地址。" };
+  }
+
+  if (!draft.username.trim()) {
+    return { site: null, error: "请填写用户名。" };
+  }
+
+  if (!draft.password.trim()) {
+    return { site: null, error: "请填写密码。" };
+  }
+
+  return {
+    site: {
+      id: draft.id ?? generateSiteId(),
+      name: deriveSiteName(draft.name, draft.baseUrl),
+      group: draft.group.trim(),
+      baseUrl: draft.baseUrl.trim(),
+      username: draft.username.trim(),
+      password: draft.password.trim(),
+    },
+    error: null,
+  };
+}
+
+function createCrsSummary(site: CrsSiteConfig, overrides: Partial<CrsSiteSummaryRow> = {}): CrsSiteSummaryRow {
+  return {
+    status: "idle",
+    totalAccounts: null,
+    normalAccounts: null,
+    abnormalAccounts: null,
+    totalApiKeys: null,
+    activeApiKeys: null,
+    platforms: null,
+    rpm: null,
+    tpm: null,
+    lastSyncedAt: null,
+    message: null,
+    ...overrides,
+    id: site.id,
+    name: site.name,
+    group: site.group,
+    host: parseHost(site.baseUrl),
+  };
+}
+
+function buildCrsSuccessSummary(site: CrsSiteConfig, data: CrsDashboardData): CrsSiteSummaryRow {
+  return createCrsSummary(site, {
+    status: "ready",
+    totalAccounts: data.overview.totalAccounts,
+    normalAccounts: data.overview.normalAccounts,
+    abnormalAccounts: data.overview.abnormalAccounts,
+    totalApiKeys: data.overview.totalApiKeys,
+    activeApiKeys: data.overview.activeApiKeys,
+    platforms: data.overview.accountsByPlatform,
+    rpm: data.realtimeMetrics.rpm,
+    tpm: data.realtimeMetrics.tpm,
+    lastSyncedAt: new Date().toISOString(),
+    message: null,
+  });
+}
+
+async function requestCrsDashboardPayload(config: {
+  baseUrl: string;
+  username: string;
+  password: string;
+}): Promise<CrsDashboardData> {
+  const response = await fetch("/api/crs/dashboard", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(config),
+  });
+
+  const result = (await response.json()) as CrsDashboardApiResponse;
+
+  if (!response.ok || !result.success) {
+    throw new Error("message" in result ? result.message : "CRS 数据加载失败。");
+  }
+
+  return result.data;
 }
 
 function buildSiteFromDraft(siteDraft: SiteDraft): { site: SiteConfig | null; error: string | null } {
@@ -301,13 +426,17 @@ async function saveSettingsPayload(settings: DashboardSettings): Promise<Dashboa
 
 function buildDashboardSettingsPayload(
   sites: SiteConfig[],
+  crsSites: CrsSiteConfig[],
   range: DashboardRange,
   activeSiteId: string | null,
+  activeCrsSiteId: string | null,
 ): DashboardSettings {
   return normalizeDashboardSettings({
     sites,
+    crsSites,
     range,
     activeSiteId,
+    activeCrsSiteId,
   });
 }
 
@@ -472,6 +601,16 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
   const [modelQuery, setModelQuery] = useState("");
   const [, startTransition] = useTransition();
 
+  // CRS 状态
+  const [crsSites, setCrsSites] = useState<CrsSiteConfig[]>([]);
+  const [crsSiteDraft, setCrsSiteDraft] = useState<CrsSiteDraft>(createEmptyCrsSiteDraft());
+  const [activeCrsSiteId, setActiveCrsSiteId] = useState<string | null>(null);
+  const [crsDashboardMap, setCrsDashboardMap] = useState<Record<string, CrsDashboardData>>({});
+  const [crsSiteSummaryMap, setCrsSiteSummaryMap] = useState<Record<string, CrsSiteSummaryRow>>({});
+  const [isRefreshingCrs, setIsRefreshingCrs] = useState(false);
+  const [refreshingCrsSiteId, setRefreshingCrsSiteId] = useState<string | null>(null);
+  const [isTestingCrsDraft, setIsTestingCrsDraft] = useState(false);
+
   const activeSite = useMemo(() => sites.find((site) => site.id === activeSiteId) ?? null, [sites, activeSiteId]);
   const activeData = activeSiteId ? dashboardMap[activeSiteId] ?? null : null;
   const orderedRows = useMemo(() => sites.map((site) => createSummary(site, siteSummaryMap[site.id])), [sites, siteSummaryMap]);
@@ -494,6 +633,11 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
   const rangeLabel = getRangeLabel(queryRange);
   const activePresetDays = RANGE_PRESETS.find((preset) => preset.days === getRangeSpanDays(queryRange))?.days ?? null;
   const topModel = activeData?.models[0] ?? null;
+
+  // CRS 派生状态
+  const activeCrsSite = useMemo(() => crsSites.find((s) => s.id === activeCrsSiteId) ?? null, [crsSites, activeCrsSiteId]);
+  const activeCrsData = activeCrsSiteId ? crsDashboardMap[activeCrsSiteId] ?? null : null;
+  const crsOrderedRows = useMemo(() => crsSites.map((s) => createCrsSummary(s, crsSiteSummaryMap[s.id])), [crsSites, crsSiteSummaryMap]);
 
   const refreshSingleSite = useCallback(
     async (site: SiteConfig, options?: { range?: DashboardRange; activate?: boolean }) => {
@@ -599,12 +743,112 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
     [sites, queryRange, activeSiteId],
   );
 
+  const refreshSingleCrsSite = useCallback(
+    async (site: CrsSiteConfig, options?: { activate?: boolean }) => {
+      setRefreshingCrsSiteId(site.id);
+      setCrsSiteSummaryMap((current) => ({
+        ...current,
+        [site.id]: createCrsSummary(site, { ...current[site.id], status: "loading", message: null }),
+      }));
+
+      try {
+        const data = await requestCrsDashboardPayload({
+          baseUrl: site.baseUrl,
+          username: site.username,
+          password: site.password,
+        });
+
+        startTransition(() => {
+          setCrsDashboardMap((current) => ({ ...current, [site.id]: data }));
+          setCrsSiteSummaryMap((current) => ({ ...current, [site.id]: buildCrsSuccessSummary(site, data) }));
+        });
+
+        if (options?.activate) {
+          setActiveCrsSiteId(site.id);
+        }
+
+        return data;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "CRS 数据加载失败。";
+        setCrsSiteSummaryMap((current) => ({
+          ...current,
+          [site.id]: createCrsSummary(site, { ...current[site.id], status: "error", message }),
+        }));
+
+        if (options?.activate) {
+          setNotice({ tone: "error", text: message });
+        }
+
+        return null;
+      } finally {
+        setRefreshingCrsSiteId((current) => (current === site.id ? null : current));
+      }
+    },
+    [],
+  );
+
+  const refreshAllCrsSites = useCallback(
+    async (siteList = crsSites, preferredActiveId = activeCrsSiteId) => {
+      if (!siteList.length) {
+        return;
+      }
+
+      setIsRefreshingCrs(true);
+      const results = await Promise.all(siteList.map(async (site) => {
+        try {
+          const data = await requestCrsDashboardPayload({
+            baseUrl: site.baseUrl,
+            username: site.username,
+            password: site.password,
+          });
+          return { site, ok: true as const, data };
+        } catch (error) {
+          return { site, ok: false as const, message: error instanceof Error ? error.message : "CRS 数据加载失败。" };
+        }
+      }));
+
+      startTransition(() => {
+        setCrsDashboardMap((current) => {
+          const next = { ...current };
+          for (const result of results) {
+            if (result.ok) {
+              next[result.site.id] = result.data;
+            }
+          }
+          return next;
+        });
+
+        setCrsSiteSummaryMap(() => {
+          const next: Record<string, CrsSiteSummaryRow> = {};
+          for (const result of results) {
+            next[result.site.id] = result.ok
+              ? buildCrsSuccessSummary(result.site, result.data)
+              : createCrsSummary(result.site, { status: "error", message: result.message });
+          }
+          return next;
+        });
+      });
+
+      const nextActiveId = results.find((r) => r.ok && r.site.id === preferredActiveId)?.site.id
+        ?? results.find((r) => r.ok)?.site.id
+        ?? preferredActiveId;
+      if (nextActiveId) {
+        setActiveCrsSiteId(nextActiveId);
+      }
+
+      setIsRefreshingCrs(false);
+    },
+    [crsSites, activeCrsSiteId],
+  );
+
   const applyLoadedSettings = useCallback(
     async (settings: DashboardSettings) => {
       const normalizedSettings = buildDashboardSettingsPayload(
         settings.sites,
+        settings.crsSites,
         settings.range,
         settings.activeSiteId,
+        settings.activeCrsSiteId,
       );
       const nextActiveSite =
         normalizedSettings.activeSiteId
@@ -613,14 +857,28 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
             ) ?? normalizedSettings.sites[0]
           : null;
 
+      const nextActiveCrsSite =
+        normalizedSettings.activeCrsSiteId
+          ? normalizedSettings.crsSites.find(
+              (site) => site.id === normalizedSettings.activeCrsSiteId,
+            ) ?? normalizedSettings.crsSites[0]
+          : null;
+
       setSites(normalizedSettings.sites);
+      setCrsSites(normalizedSettings.crsSites);
       setQueryRange(normalizedSettings.range);
       setActiveSiteId(normalizedSettings.activeSiteId);
+      setActiveCrsSiteId(normalizedSettings.activeCrsSiteId);
       setSiteDraft(
         nextActiveSite ? siteToDraft(nextActiveSite) : createEmptySiteDraft(),
       );
+      setCrsSiteDraft(
+        nextActiveCrsSite ? crsSiteToDraft(nextActiveCrsSite) : createEmptyCrsSiteDraft(),
+      );
       setDashboardMap({});
       setSiteSummaryMap({});
+      setCrsDashboardMap({});
+      setCrsSiteSummaryMap({});
       setIsHydrated(true);
 
       if (normalizedSettings.sites.length > 0) {
@@ -629,6 +887,11 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
           normalizedSettings.range,
           normalizedSettings.activeSiteId,
         );
+      }
+
+      // CRS 站点也自动刷新
+      if (normalizedSettings.crsSites.length > 0) {
+        await refreshAllCrsSites(normalizedSettings.crsSites, normalizedSettings.activeCrsSiteId);
       }
     },
     [refreshAllSites],
@@ -688,7 +951,7 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
         const fallbackSettings =
           browserSettings.sites.length > 0
             ? browserSettings
-            : buildDashboardSettingsPayload([], createDefaultRange(), null);
+            : buildDashboardSettingsPayload([], [], createDefaultRange(), null, null);
 
         persistedSettingsRef.current = null;
         await applyLoadedSettings(fallbackSettings);
@@ -723,8 +986,10 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
 
     const nextSettings = buildDashboardSettingsPayload(
       sites,
+      crsSites,
       queryRange,
       activeSiteId,
+      activeCrsSiteId,
     );
     const serializedSettings = JSON.stringify(nextSettings);
     if (persistedSettingsRef.current === serializedSettings) {
@@ -761,7 +1026,7 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
     return () => {
       isCancelled = true;
     };
-  }, [sites, queryRange, activeSiteId, isHydrated]);
+  }, [sites, crsSites, queryRange, activeSiteId, activeCrsSiteId, isHydrated]);
 
   useEffect(() => {
     if (!activeData) {
@@ -946,12 +1211,123 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // CRS 事件处理
+  // ---------------------------------------------------------------------------
+
+  function setCrsDraftField<Key extends keyof CrsSiteDraft>(key: Key, value: CrsSiteDraft[Key]) {
+    setCrsSiteDraft((current) => ({ ...current, [key]: value }));
+  }
+
+  function handleSelectCrsSite(siteId: string) {
+    const site = crsSites.find((s) => s.id === siteId);
+    if (!site) {
+      return;
+    }
+
+    setActiveCrsSiteId(siteId);
+    setCrsSiteDraft(crsSiteToDraft(site));
+    setNotice(null);
+  }
+
+  async function handleSaveCrsSite() {
+    const { site: nextSite, error } = buildCrsSiteFromDraft(crsSiteDraft);
+    if (!nextSite) {
+      setNotice({ tone: "error", text: error ?? "CRS 站点信息不完整。" });
+      return;
+    }
+
+    setCrsSites((current) => {
+      const exists = current.some((s) => s.id === nextSite.id);
+      return exists ? current.map((s) => (s.id === nextSite.id ? nextSite : s)) : [nextSite, ...current];
+    });
+    setActiveCrsSiteId(nextSite.id);
+    setCrsSiteDraft(crsSiteToDraft(nextSite));
+
+    const data = await refreshSingleCrsSite(nextSite, { activate: true });
+    if (data) {
+      setNotice({ tone: "success", text: `CRS 站点"${nextSite.name}"已保存并同步完成。` });
+    }
+  }
+
+  async function handleTestCrsDraft() {
+    const { site: draftSite, error } = buildCrsSiteFromDraft(crsSiteDraft);
+    if (!draftSite) {
+      setNotice({ tone: "error", text: error ?? "CRS 站点信息不完整。" });
+      return;
+    }
+
+    setIsTestingCrsDraft(true);
+    try {
+      const data = await requestCrsDashboardPayload({
+        baseUrl: draftSite.baseUrl,
+        username: draftSite.username,
+        password: draftSite.password,
+      });
+      setNotice({
+        tone: "success",
+        text: `连接测试成功：${data.overview.totalAccounts} 个账号，${data.overview.normalAccounts} 个正常。`,
+      });
+    } catch (testError) {
+      setNotice({ tone: "error", text: testError instanceof Error ? testError.message : "CRS 测试连接失败。" });
+    } finally {
+      setIsTestingCrsDraft(false);
+    }
+  }
+
+  function handleCreateCrsDraft() {
+    setCrsSiteDraft(createEmptyCrsSiteDraft());
+    setNotice(null);
+  }
+
+  function handleDeleteCrsSite(siteId: string) {
+    const site = crsSites.find((s) => s.id === siteId);
+    if (!site) {
+      return;
+    }
+
+    if (!window.confirm(`确认删除 CRS 站点"${site.name}"吗？`)) {
+      return;
+    }
+
+    const nextSites = crsSites.filter((s) => s.id !== siteId);
+    const nextActive = activeCrsSiteId === siteId ? nextSites[0] ?? null : nextSites.find((s) => s.id === activeCrsSiteId) ?? null;
+
+    setCrsSites(nextSites);
+    setCrsDashboardMap((current) => {
+      const next = { ...current };
+      delete next[siteId];
+      return next;
+    });
+    setCrsSiteSummaryMap((current) => {
+      const next = { ...current };
+      delete next[siteId];
+      return next;
+    });
+    setActiveCrsSiteId(nextActive?.id ?? null);
+    setCrsSiteDraft(nextActive ? crsSiteToDraft(nextActive) : createEmptyCrsSiteDraft());
+    setNotice({ tone: "success", text: `CRS 站点"${site.name}"已删除。` });
+  }
+
+  function handleDuplicateCrsSite(siteId: string) {
+    const site = crsSites.find((s) => s.id === siteId);
+    if (!site) {
+      return;
+    }
+
+    const duplicate: CrsSiteConfig = { ...site, id: generateSiteId(), name: `${site.name} 副本` };
+    setCrsSites((current) => [duplicate, ...current]);
+    setCrsSiteDraft(crsSiteToDraft(duplicate));
+    setActiveCrsSiteId(duplicate.id);
+    setNotice({ tone: "success", text: `已复制 CRS 站点"${site.name}"。` });
+  }
+
   return (
     <main className="proto-dashboard">
       <div className="topbar">
         <div className="brand">
           <h1>NewAPI 额度统计平台</h1>
-          <p>按你给的原型拆成分页面结构，统一管理多站点配置、余额表和活动站点洞察。</p>
+          <p>统一管理多站点额度、CRS 账号状态与消耗分析。</p>
         </div>
         <div className="toolbar">
           {SECTION_NAV_ITEMS.map((item) => {
@@ -964,6 +1340,7 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
             );
           })}
           <span className="chip">站点 {formatNumber(sites.length)}</span>
+          <span className="chip">CRS {formatNumber(crsSites.length)}</span>
           <span className="chip">已同步 {formatNumber(readySiteCount)}</span>
           <span className="chip">区间 {rangeLabel}</span>
           <button type="button" className="btn primary" onClick={() => void refreshAllSites()} disabled={sites.length === 0 || isRefreshingAll}>
@@ -1074,7 +1451,7 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
             <div className="screen-header">
               <div>
                 <div className="title">站点管理</div>
-                <div className="meta">目标：低成本维护多个实例配置，并保留服务端持久化、导入导出和独立阈值管理能力。</div>
+                <div className="meta">维护多个 NewAPI 实例配置，支持服务端持久化、导入导出和独立阈值管理。</div>
               </div>
               <div className="badge">服务端持久化</div>
             </div>
@@ -1164,7 +1541,7 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
             <div className="screen-header">
               <div>
                 <div className="title">多站点余额表</div>
-                <div className="meta">目标：把多站点运营管理常用动作收拢在一张表里完成，支持搜索、筛选、排序和导出。</div>
+                <div className="meta">跨站点余额一览，支持搜索、筛选、排序和导出。</div>
               </div>
               <div className="badge">支持 CSV / Excel 导出</div>
             </div>
@@ -1195,7 +1572,7 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
             <div className="screen-header">
               <div>
                 <div className="title">活动站点详情</div>
-                <div className="meta">目标：单站点深度查看，保留区间趋势、模型消耗、账户信号和基础配置信息。</div>
+                <div className="meta">单站点深度查看，区间趋势、模型消耗与账户信号。</div>
               </div>
               <div className="badge">当前站点：{activeSite?.name || "未选择"}</div>
             </div>
@@ -1258,7 +1635,132 @@ export function DashboardShell({ section = "dashboard" }: DashboardShellProps) {
           </section>
         ) : null}
 
-        <div className="footer">这版已经按你给的静态原型改成分页面结构；后续再做交互细化时也会沿用这套 UI 语言。</div>
+        {section === "crs" ? (
+          <section className="screen">
+            <div className="screen-header">
+              <div>
+                <div className="title">CRS 管理</div>
+                <div className="meta">管理 CRS 站点账号，查看各平台账号数量与健康状态。</div>
+              </div>
+              <div className="badge">登录鉴权</div>
+            </div>
+            <div className="layout">
+              <aside className="sidebar">
+                <div className="nav-group">
+                  <div className="nav-label">导航</div>
+                  {SECTION_NAV_ITEMS.map((item) => {
+                    const Icon = item.icon;
+                    return <button key={item.section} type="button" className={`nav-item ${section === item.section ? "active" : ""}`} onClick={() => jumpToSection(item.section)}><Icon className="size-4" />{item.label}</button>;
+                  })}
+                </div>
+                <div className="nav-group">
+                  <div className="nav-label">CRS 站点</div>
+                  {crsSites.map((site) => (
+                    <button key={site.id} type="button" className={`nav-item ${activeCrsSiteId === site.id ? "active" : ""}`} onClick={() => handleSelectCrsSite(site.id)}>
+                      <MonitorSmartphone className="size-4" />
+                      {site.name}
+                    </button>
+                  ))}
+                  {crsSites.length === 0 ? <div className="tiny">还没有保存 CRS 站点，先在右侧新增一个。</div> : null}
+                </div>
+                <div className="nav-group">
+                  <div className="nav-label">快捷操作</div>
+                  <button type="button" className="nav-item active" onClick={handleCreateCrsDraft}>新增 CRS 站点</button>
+                  <button type="button" className="nav-item" onClick={() => void refreshAllCrsSites()} disabled={crsSites.length === 0 || isRefreshingCrs}>
+                    {isRefreshingCrs ? "刷新中..." : "刷新全部 CRS"}
+                  </button>
+                </div>
+              </aside>
+              <div className="main">
+                <div className="row two">
+                  <div className="card">
+                    <h4>新增 / 编辑 CRS 站点</h4>
+                    <div className="form-grid">
+                      <div className="field"><label htmlFor="crs-name">站点名称</label><input id="crs-name" className="control-input" placeholder="例：crs-ccmx.meta-api.vip" value={crsSiteDraft.name} onChange={(e) => setCrsDraftField("name", e.target.value)} /></div>
+                      <div className="field"><label htmlFor="crs-group">分组</label><input id="crs-group" className="control-input" placeholder="主站 / 商用 / 测试" value={crsSiteDraft.group} onChange={(e) => setCrsDraftField("group", e.target.value)} /></div>
+                      <div className="field span-2"><label htmlFor="crs-url">站点地址</label><input id="crs-url" className="control-input" placeholder="https://crs-xxx.example.com" value={crsSiteDraft.baseUrl} onChange={(e) => setCrsDraftField("baseUrl", e.target.value)} /></div>
+                      <div className="field"><label htmlFor="crs-username">用户名</label><input id="crs-username" className="control-input" placeholder="管理员用户名" value={crsSiteDraft.username} onChange={(e) => setCrsDraftField("username", e.target.value)} /></div>
+                      <div className="field"><label htmlFor="crs-password">密码</label><input id="crs-password" type="password" className="control-input" placeholder="管理员密码" value={crsSiteDraft.password} onChange={(e) => setCrsDraftField("password", e.target.value)} /></div>
+                    </div>
+                    <div className="button-row">
+                      <button type="button" className="btn primary" onClick={() => void handleSaveCrsSite()}>{crsSiteDraft.id ? "更新站点" : "保存站点"}</button>
+                      <button type="button" className="btn" onClick={() => void handleTestCrsDraft()} disabled={isTestingCrsDraft}>{isTestingCrsDraft ? <LoaderCircle className="size-4 animate-spin" /> : <RefreshCcw className="size-4" />}测试连接</button>
+                      <button type="button" className="btn" onClick={handleCreateCrsDraft}>清空表单</button>
+                    </div>
+                  </div>
+                  <div className="card">
+                    <h4>配置说明</h4>
+                    <div className="signal-list">
+                      <div className="signal"><strong>登录鉴权</strong><p>输入 CRS 管理后台的用户名和密码，系统会自动登录获取 token 后拉取 Dashboard 数据。</p></div>
+                      <div className="signal"><strong>密码存储</strong><p>密码保存在服务端配置文件中，token 不落盘，每次刷新都重新登录获取。</p></div>
+                      <div className="signal"><strong>多平台监控</strong><p>支持查看 Claude、Gemini、OpenAI、Bedrock 等各平台的账号数量与健康状态。</p></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 已保存 CRS 站点列表 */}
+                <div className="card spaced-card">
+                  <h4>已保存 CRS 站点</h4>
+                  {crsSites.length > 0 ? (
+                    <div className="site-list">
+                      {crsSites.map((site) => {
+                        const row = crsOrderedRows.find((r) => r.id === site.id) ?? createCrsSummary(site);
+                        return (
+                          <div className="site-item" key={site.id}>
+                            <div>
+                              <strong>{site.name}</strong>
+                              <div className="site-meta">分组：{getGroupLabel(site.group)} · Host：{parseHost(site.baseUrl)}</div>
+                              <div className="site-meta">
+                                状态：{row.status === "ready" ? "已同步" : row.status === "loading" ? "同步中" : row.status === "error" ? "失败" : "待同步"}
+                                {row.totalAccounts !== null ? ` · 账号：${row.totalAccounts}（正常 ${row.normalAccounts ?? 0}）` : ""}
+                              </div>
+                              {row.message ? <div className="site-meta" style={{ color: "#ff9d9d" }}>{row.message}</div> : null}
+                            </div>
+                            <div className="site-actions">
+                              <button type="button" className="btn" onClick={() => handleSelectCrsSite(site.id)}><PencilLine className="size-4" />编辑</button>
+                              <button type="button" className="btn" onClick={() => handleDuplicateCrsSite(site.id)}><Copy className="size-4" />复制</button>
+                              <button type="button" className="btn" onClick={() => void refreshSingleCrsSite(site, { activate: activeCrsSiteId === site.id })} disabled={refreshingCrsSiteId === site.id}>
+                                {refreshingCrsSiteId === site.id ? <LoaderCircle className="size-4 animate-spin" /> : <RefreshCcw className="size-4" />}刷新
+                              </button>
+                              <button type="button" className="btn danger" onClick={() => handleDeleteCrsSite(site.id)}><Trash2 className="size-4" />删除</button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="empty-panel small">当前还没有保存任何 CRS 站点，先填写上面的表单保存一个。</div>
+                  )}
+                </div>
+
+                {/* CRS 站点详情 */}
+                {activeCrsSite && activeCrsData ? (
+                  <>
+                    <div className="row cards-3 spaced">
+                      <div className="card"><h4>总账号数</h4><div className="metric">{formatNumber(activeCrsData.overview.totalAccounts)}</div><div className="delta">正常 {formatNumber(activeCrsData.overview.normalAccounts)} · 异常 {formatNumber(activeCrsData.overview.abnormalAccounts)}</div></div>
+                      <div className="card"><h4>API Keys</h4><div className="metric">{formatNumber(activeCrsData.overview.totalApiKeys)}</div><div className="delta">活跃 {formatNumber(activeCrsData.overview.activeApiKeys)}</div></div>
+                      <div className="card"><h4>实时指标</h4><div className="metric">{formatCompactNumber(activeCrsData.realtimeMetrics.rpm)} RPM</div><div className="delta">TPM {formatCompactNumber(activeCrsData.realtimeMetrics.tpm)} · 窗口 {activeCrsData.realtimeMetrics.windowMinutes}min</div></div>
+                    </div>
+
+                    <div className="row cards-3 spaced">
+                      <div className="card"><h4>今日请求</h4><div className="metric">{formatCompactNumber(activeCrsData.recentActivity.requestsToday)}</div><div className="delta">今日 Token: {formatCompactNumber(activeCrsData.recentActivity.tokensToday)}</div></div>
+                      <div className="card"><h4>累计 Token</h4><div className="metric">{formatCompactNumber(activeCrsData.overview.totalTokensUsed)}</div><div className="delta">输入 {formatCompactNumber(activeCrsData.overview.totalInputTokensUsed)} · 输出 {formatCompactNumber(activeCrsData.overview.totalOutputTokensUsed)}</div></div>
+                      <div className="card"><h4>系统健康</h4><div className="metric" style={{ color: activeCrsData.systemHealth.redisConnected ? "#5be38f" : "#ff9d9d" }}>{activeCrsData.systemHealth.redisConnected ? "正常" : "异常"}</div><div className="delta">Redis {activeCrsData.systemHealth.redisConnected ? "已连接" : "断开"} · 运行 {formatCompactNumber(Math.floor(activeCrsData.systemHealth.uptime / 3600))}h</div></div>
+                    </div>
+
+                    <div className="spaced">
+                      <CrsPlatformTable platforms={activeCrsData.overview.accountsByPlatform} />
+                    </div>
+                  </>
+                ) : crsSites.length > 0 ? (
+                  <div className="empty-panel spaced">选择一个 CRS 站点查看详情，或等待同步完成。</div>
+                ) : null}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        <div className="footer">NewAPI 额度统计平台 · 多站点管理与 CRS 账号监控</div>
       </div>
     </main>
   );

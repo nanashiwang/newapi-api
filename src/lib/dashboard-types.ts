@@ -18,8 +18,83 @@ export interface DashboardRange {
 
 export interface DashboardSettings {
   sites: SiteConfig[];
+  crsSites: CrsSiteConfig[];
   range: DashboardRange;
   activeSiteId: string | null;
+  activeCrsSiteId: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// CRS (Claude Reverse Service) 站点相关类型
+// ---------------------------------------------------------------------------
+
+export interface CrsSiteConfig {
+  id: string;
+  name: string;
+  baseUrl: string;
+  username: string;
+  password: string;
+  group: string;
+}
+
+export interface CrsPlatformAccount {
+  total: number;
+  normal: number;
+  abnormal: number;
+  paused: number;
+  rateLimited: number;
+}
+
+export interface CrsDashboardData {
+  overview: {
+    totalApiKeys: number;
+    activeApiKeys: number;
+    totalAccounts: number;
+    normalAccounts: number;
+    abnormalAccounts: number;
+    pausedAccounts: number;
+    rateLimitedAccounts: number;
+    accountsByPlatform: Record<string, CrsPlatformAccount>;
+    totalTokensUsed: number;
+    totalRequestsUsed: number;
+    totalInputTokensUsed: number;
+    totalOutputTokensUsed: number;
+    totalCacheCreateTokensUsed: number;
+    totalCacheReadTokensUsed: number;
+  };
+  recentActivity: {
+    requestsToday: number;
+    tokensToday: number;
+    inputTokensToday: number;
+    outputTokensToday: number;
+  };
+  realtimeMetrics: {
+    rpm: number;
+    tpm: number;
+    windowMinutes: number;
+  };
+  systemHealth: {
+    redisConnected: boolean;
+    uptime: number;
+  };
+}
+
+export interface CrsSiteSummaryRow {
+  id: string;
+  name: string;
+  group: string;
+  host: string;
+  status: "idle" | "loading" | "ready" | "error";
+  totalAccounts: number | null;
+  normalAccounts: number | null;
+  abnormalAccounts: number | null;
+  totalApiKeys: number | null;
+  activeApiKeys: number | null;
+  platforms: Record<string, CrsPlatformAccount> | null;
+  rpm: number | null;
+  tpm: number | null;
+  lastSyncedAt: string | null;
+  message: string | null;
 }
 
 export interface DashboardRequest {
